@@ -6,7 +6,9 @@ cabal-version: 1.12
 
 name:           alfred-slack
 version:        0.1.0.0
+synopsis:       Alfred integration for Slack
 description:    Please see the README on GitHub at <https://github.com/satosystems/alfred-slack#readme>
+category:       CLI
 homepage:       https://github.com/satosystems/alfred-slack#readme
 bug-reports:    https://github.com/satosystems/alfred-slack/issues
 author:         Satoshi Ogata
@@ -35,25 +37,12 @@ library
       base >=4.7 && <5
   default-language: Haskell2010
 
-executable alfred-slack-exe
+executable alfred-slack
   main-is: Main.hs
   other-modules:
       Paths_alfred_slack
   hs-source-dirs:
       app
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      alfred-slack
-    , base >=4.7 && <5
-  default-language: Haskell2010
-
-test-suite alfred-slack-test
-  type: exitcode-stdio-1.0
-  main-is: Spec.hs
-  other-modules:
-      Paths_alfred_slack
-  hs-source-dirs:
-      test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       alfred-slack
