@@ -13,7 +13,7 @@ import Data.Aeson
 import Data.Aeson.Casing
 import Data.Aeson.TH
 
-import Network.Slack.Types
+import Types
 
 data Profile =
   Profile
@@ -25,6 +25,7 @@ data Profile =
 
 $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Profile)
 
+-- makeLenses ''Profile
 data Member =
   Member
     { memberId :: UserId
@@ -38,6 +39,7 @@ data Member =
 
 $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 6} ''Member)
 
+-- makeLenses ''Member
 newtype Purpose =
   Purpose
     { purposeValue :: String
@@ -46,6 +48,7 @@ newtype Purpose =
 
 $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Purpose)
 
+-- makeLenses ''Purpose
 newtype ResponseMetadata =
   ResponseMetadata
     { responseMetadataNextCursor :: String
@@ -56,6 +59,7 @@ $(deriveJSON
     defaultOptions {fieldLabelModifier = snakeCase . drop 16}
     ''ResponseMetadata)
 
+-- makeLenses ''ResponseMetadata
 data Channel =
   Channel
     { channelId :: String
@@ -68,15 +72,17 @@ data Channel =
 
 $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Channel)
 
+-- makeLenses ''Channel
 data ListResponse =
   ListResponse
     { listResponseOk :: Bool
     , listResponseChannels :: Maybe [Channel]
     , listResponseMembers :: Maybe [Member]
-    , listResponseResponseMetadata :: ResponseMetadata
+    , listResponseResponseMetadata :: Maybe ResponseMetadata -- FIXME
     }
   deriving (Read, Show)
 
 $(deriveJSON
     defaultOptions {fieldLabelModifier = snakeCase . drop 12}
     ''ListResponse)
+-- makeLenses ''ListResponse

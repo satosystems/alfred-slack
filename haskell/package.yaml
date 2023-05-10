@@ -18,14 +18,17 @@ description: Please see the README on GitHub at <https://github.com/satosystems/
 dependencies:
   - aeson
   - aeson-casing
+  - async
   - base >= 4.7 && < 5
   - bytestring
   - case-insensitive
   - containers
   - directory
   - http-conduit
+  - lens
   - mtl
   - string-conversions
+  - text
   - unix
 
 ghc-options:
