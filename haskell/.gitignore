@@ -1,4 +1,3 @@
 *~
-.cache.conversations.list
-.cache.users.list
+.cache/
 .stack-work/
