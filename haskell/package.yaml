@@ -16,7 +16,17 @@ category: CLI
 description: Please see the README on GitHub at <https://github.com/satosystems/alfred-slack#readme>
 
 dependencies:
+  - aeson
+  - aeson-casing
   - base >= 4.7 && < 5
+  - bytestring
+  - case-insensitive
+  - containers
+  - directory
+  - http-conduit
+  - mtl
+  - string-conversions
+  - unix
 
 ghc-options:
   - -Wall
