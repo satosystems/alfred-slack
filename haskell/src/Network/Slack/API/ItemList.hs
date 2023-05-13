@@ -13,7 +13,8 @@ import Control.Concurrent.Async
 import Control.Monad
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
-import Data.CaseInsensitive
+import qualified Data.CaseInsensitive as CI
+import Data.Char
 import Data.List (isInfixOf)
 import Data.Maybe
 import Data.String.Conversions
@@ -50,7 +51,7 @@ foldQueryString :: Query -> (B.ByteString, String) -> Query
 foldQueryString acc (k, v) = (k, Just $ convertString v) : acc
 
 foldHeaders :: RequestHeaders -> (B.ByteString, String) -> RequestHeaders
-foldHeaders acc (k, v) = (mk k, convertString v) : acc
+foldHeaders acc (k, v) = (CI.mk k, convertString v) : acc
 
 request :: Token -> Path -> IO ([Channel], [Member])
 request token path = do
@@ -87,13 +88,31 @@ request token path = do
                    else go acc' nc
         else return acc
 
+infixOfIgnoreCase :: String -> String -> Bool
+infixOfIgnoreCase needle haystack =
+  let needle' = map toLower needle
+      haystack' = map toLower haystack
+   in needle' `isInfixOf` haystack'
+
 foldToItemFromChannel :: Maybe String -> [Item] -> Channel -> [Item]
 foldToItemFromChannel _ acc (Channel _ _ True _ _) = acc
 foldToItemFromChannel Nothing acc (Channel id' name _ teamId (Purpose value)) =
-  Item id' name value (teamId ++ " " ++ id') Nothing : acc
+  Item
+    id'
+    name
+    value
+    ("slack://channel?team=" ++ teamId ++ "&id=" ++ id')
+    Nothing :
+  acc
 foldToItemFromChannel (Just keyword) acc (Channel id' name _ teamId (Purpose value))
-  | keyword `isInfixOf` name =
-    Item id' name value (teamId ++ " " ++ id') Nothing : acc
+  | keyword `infixOfIgnoreCase` name =
+    Item
+      id'
+      name
+      value
+      ("slack://channel?team=" ++ teamId ++ "&id=" ++ id')
+      Nothing :
+    acc
   | otherwise = acc
 
 -- |
@@ -115,17 +134,17 @@ foldToItemFromMember Nothing acc (Member id' teamId name _ (Profile realName dis
     id'
     displayName
     (realName ++ " (" ++ name ++ ")")
-    (teamId ++ " " ++ id')
-    (Just $ imagePath image) :
+    ("slack://user?team=" ++ teamId ++ "&id=" ++ id')
+    (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
   acc
 foldToItemFromMember (Just keyword) acc (Member id' teamId name _ (Profile realName displayName image) _)
-  | any (keyword `isInfixOf`) [name, realName, displayName] =
+  | any (keyword `infixOfIgnoreCase`) [name, realName, displayName] =
     Item
       id'
       displayName
       (realName ++ " (" ++ name ++ ")")
-      (teamId ++ " " ++ id')
-      (Just $ imagePath image) :
+      ("slack://user?team=" ++ teamId ++ "&id=" ++ id')
+      (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
     acc
   | otherwise = acc
 

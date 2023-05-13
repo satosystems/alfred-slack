@@ -8,6 +8,9 @@ module Types
   , Path
   , URL
   , Item(..)
+  , ImagePath(..)
+  , SearchResult(..)
+  , Variables(..)
   ) where
 
 import Data.Aeson
@@ -25,6 +28,14 @@ type URL = String
 
 type Cursor = String
 
+newtype ImagePath =
+  ImagePath
+    { path :: FilePath
+    }
+  deriving (Show)
+
+$(deriveJSON defaultOptions ''ImagePath)
+
 data Item =
   Item
     { uid :: String
@@ -32,8 +43,27 @@ data Item =
     , subtitle :: String
     , arg :: String
     -- , autocomplete :: String
-    , icon :: Maybe FilePath
+    , icon :: Maybe ImagePath
     }
   deriving (Show)
 
 $(deriveJSON defaultOptions ''Item)
+
+data Variables =
+  Variables
+    { oldResults :: String
+    , oldArgv :: String
+    }
+  deriving (Show)
+
+$(deriveJSON defaultOptions ''Variables)
+
+data SearchResult =
+  SearchResult
+    { skipknowledge :: Bool
+    , variables :: Variables
+    , items :: [Item]
+    }
+  deriving (Show)
+
+$(deriveJSON defaultOptions ''SearchResult)

@@ -29,6 +29,7 @@ dependencies:
   - mtl
   - string-conversions
   - text
+  - time
   - unix
 
 ghc-options:
