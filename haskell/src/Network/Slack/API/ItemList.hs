@@ -19,6 +19,8 @@ import Data.List (isInfixOf)
 import Data.Maybe
 import Data.String.Conversions
 import qualified Data.Text as T
+import Data.Text.Normalize
+import Debug.Trace
 import Network.HTTP.Simple
 import System.Directory
 
@@ -90,9 +92,13 @@ request token path = do
 
 infixOfIgnoreCase :: String -> String -> Bool
 infixOfIgnoreCase needle haystack =
-  let needle' = map toLower needle
+  let needle' =
+        map toLower $ (convertString . normalize NFC . convertString) needle
       haystack' = map toLower haystack
-   in needle' `isInfixOf` haystack'
+   in trace
+        (show (needle' `isInfixOf` haystack') ++
+         " = " ++ needle' ++ " `isInfixOf` " ++ haystack') $
+      needle' `isInfixOf` haystack'
 
 foldToItemFromChannel :: Maybe String -> [Item] -> Channel -> [Item]
 foldToItemFromChannel _ acc (Channel _ _ True _ _) = acc

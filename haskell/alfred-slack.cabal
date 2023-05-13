@@ -51,6 +51,7 @@ library
     , string-conversions
     , text
     , time
+    , unicode-transforms
     , unix
   default-language: Haskell2010
 
@@ -77,5 +78,6 @@ executable alfred-slack
     , string-conversions
     , text
     , time
+    , unicode-transforms
     , unix
   default-language: Haskell2010

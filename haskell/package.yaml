@@ -30,6 +30,7 @@ dependencies:
   - string-conversions
   - text
   - time
+  - unicode-transforms
   - unix
 
 ghc-options:
