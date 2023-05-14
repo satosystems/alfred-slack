@@ -74,8 +74,12 @@ request token path = do
             makeRequest
               "GET"
               [("Authorization", "Bearer " ++ token)]
-              (convertString path)
-              ([("cursor", cursor) | (not . null) cursor])
+              (convertString path) $
+            [("limit", "99999"), ("exclude_archived", "true")] ++
+            [("cursor", cursor) | (not . null) cursor] ++
+            [ ("types", "public_channel,private_channel,mpim")
+            | path == apiPathChannels
+            ]
       res <- httpJSON req
       let ListResponse ok mChannels mMembers mMetadata = getResponseBody res
       if ok
