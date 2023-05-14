@@ -64,7 +64,7 @@ main' token keyword = do
                        , icon = Nothing
                        }
                    ]
-              else channels ++ members
+              else members ++ channels -- Note: There are so many channels, so I'll prioritize members.
       putStrLn $
         convertString $
         encode $
