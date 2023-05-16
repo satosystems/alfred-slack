@@ -16,6 +16,7 @@ category: CLI
 description: Please see the README on GitHub at <https://github.com/satosystems/alfred-slack#readme>
 
 dependencies:
+  - MissingH
   - aeson
   - aeson-casing
   - async
@@ -27,6 +28,8 @@ dependencies:
   - http-conduit
   - lens
   - mtl
+  - process
+  - strict
   - string-conversions
   - text
   - time
