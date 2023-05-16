@@ -21,6 +21,7 @@ import Data.Maybe
 import Data.String.Conversions
 import qualified Data.Text as T
 import Data.Text.Normalize
+import Debug.Trace
 import Network.HTTP.Simple
 import System.Directory
 
@@ -101,9 +102,9 @@ infixOfIgnoreCase needle haystack =
       haystack' = map toLower haystack
    in needle' `isInfixOf` haystack'
 
-foldToItemFromChannel :: Maybe String -> [Item] -> Channel -> [Item]
+foldToItemFromChannel :: [String] -> [Item] -> Channel -> [Item]
 foldToItemFromChannel _ acc (Channel _ _ True _ _) = acc
-foldToItemFromChannel Nothing acc (Channel id' name _ teamId (Purpose value)) =
+foldToItemFromChannel [] acc (Channel id' name _ teamId (Purpose value)) =
   Item
     id'
     name
@@ -111,8 +112,8 @@ foldToItemFromChannel Nothing acc (Channel id' name _ teamId (Purpose value)) =
     ("'slack://channel?team=" ++ teamId ++ "&id=" ++ id' ++ "'")
     Nothing :
   acc
-foldToItemFromChannel (Just keyword) acc (Channel id' name _ teamId (Purpose value))
-  | keyword `infixOfIgnoreCase` name =
+foldToItemFromChannel keywords acc (Channel id' name _ teamId (Purpose value))
+  | all (`infixOfIgnoreCase` name) keywords =
     Item
       id'
       name
@@ -133,10 +134,10 @@ imagePath url =
       split' = drop 3 split
    in convertString $ T.intercalate "/" split'
 
-foldToItemFromMember :: Maybe String -> [Item] -> Member -> [Item]
+foldToItemFromMember :: [String] -> [Item] -> Member -> [Item]
 foldToItemFromMember _ acc (Member _ _ _ True _ _) = acc
 foldToItemFromMember _ acc (Member _ _ _ _ _ True) = acc
-foldToItemFromMember Nothing acc (Member id' teamId name _ (Profile realName displayName image) _) =
+foldToItemFromMember [] acc (Member id' teamId name _ (Profile realName displayName image) _) =
   Item
     id'
     displayName
@@ -144,8 +145,11 @@ foldToItemFromMember Nothing acc (Member id' teamId name _ (Profile realName dis
     ("'slack://user?team=" ++ teamId ++ "&id=" ++ id' ++ "'")
     (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
   acc
-foldToItemFromMember (Just keyword) acc (Member id' teamId name _ (Profile realName displayName image) _)
-  | any (keyword `infixOfIgnoreCase`) [name, realName, displayName] =
+foldToItemFromMember keywords acc (Member id' teamId name _ (Profile realName displayName image) _)
+  | all
+     (\keyword ->
+        any (keyword `infixOfIgnoreCase`) [name, realName, displayName])
+     keywords =
     Item
       id'
       displayName
@@ -155,16 +159,16 @@ foldToItemFromMember (Just keyword) acc (Member id' teamId name _ (Profile realN
     acc
   | otherwise = acc
 
-getChannels :: Token -> Maybe String -> IO [Item]
-getChannels token mKeyword = do
+getChannels :: Token -> [String] -> IO [Item]
+getChannels token keywords = do
   (channels, _) <- request token apiPathChannels
-  return $ foldl (foldToItemFromChannel mKeyword) [] channels
+  return $ foldl (foldToItemFromChannel keywords) [] channels
 
-getMembers :: Token -> Maybe String -> IO [Item]
-getMembers token mKeyword = do
+getMembers :: Token -> [String] -> IO [Item]
+getMembers token keywords = do
   (_, members) <- request token apiPathMembers
-  isNothing mKeyword `when` downloadImage members
-  return $ foldl (foldToItemFromMember mKeyword) [] members
+  null keywords `when` downloadImage members
+  return $ foldl (foldToItemFromMember keywords) [] members
 
 downloadImage :: [Member] -> IO ()
 downloadImage members = do

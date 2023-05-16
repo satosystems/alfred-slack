@@ -69,8 +69,8 @@ main' args = do
               a1 <- async clearChannelsCache
               a2 <- async clearMembersCache
               mapM_ wait [a1, a2]
-              a3 <- async $ void $ getChannels token Nothing
-              a4 <- async $ void $ getMembers token Nothing
+              a3 <- async $ void $ getChannels token []
+              a4 <- async $ void $ getMembers token []
               mapM_ wait [a3, a4]
               t2 <- getSystemTime
               let seconds = systemSeconds t2 - systemSeconds t1
@@ -98,8 +98,8 @@ main' args = do
                       ]
                   }
             _ -> do
-              a1 <- async $ getChannels token $ Just keyword
-              a2 <- async $ getMembers token $ Just keyword
+              a1 <- async $ getChannels token $ drop 2 args
+              a2 <- async $ getMembers token $ drop 2 args
               channels <- wait a1
               members <- wait a2
               let items =
