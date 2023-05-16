@@ -20,7 +20,6 @@ import Data.Maybe
 import Data.String.Conversions
 import qualified Data.Text as T
 import Data.Text.Normalize
-import Debug.Trace
 import Network.HTTP.Simple
 import System.Directory
 
@@ -99,10 +98,7 @@ infixOfIgnoreCase needle haystack =
   let needle' =
         map toLower $ (convertString . normalize NFC . convertString) needle
       haystack' = map toLower haystack
-   in trace
-        (show (needle' `isInfixOf` haystack') ++
-         " = " ++ needle' ++ " `isInfixOf` " ++ haystack') $
-      needle' `isInfixOf` haystack'
+   in needle' `isInfixOf` haystack'
 
 foldToItemFromChannel :: Maybe String -> [Item] -> Channel -> [Item]
 foldToItemFromChannel _ acc (Channel _ _ True _ _) = acc
