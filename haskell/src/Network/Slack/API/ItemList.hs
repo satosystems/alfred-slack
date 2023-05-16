@@ -5,6 +5,7 @@ module Network.Slack.API.ItemList
   ( getChannels
   , getMembers
     -- * Cache control
+  , cacheFile
   , clearChannelsCache
   , clearMembersCache
   ) where
@@ -107,7 +108,7 @@ foldToItemFromChannel Nothing acc (Channel id' name _ teamId (Purpose value)) =
     id'
     name
     value
-    ("slack://channel?team=" ++ teamId ++ "&id=" ++ id')
+    ("'slack://channel?team=" ++ teamId ++ "&id=" ++ id' ++ "'")
     Nothing :
   acc
 foldToItemFromChannel (Just keyword) acc (Channel id' name _ teamId (Purpose value))
@@ -116,7 +117,7 @@ foldToItemFromChannel (Just keyword) acc (Channel id' name _ teamId (Purpose val
       id'
       name
       value
-      ("slack://channel?team=" ++ teamId ++ "&id=" ++ id')
+      ("'slack://channel?team=" ++ teamId ++ "&id=" ++ id' ++ "'")
       Nothing :
     acc
   | otherwise = acc
@@ -140,7 +141,7 @@ foldToItemFromMember Nothing acc (Member id' teamId name _ (Profile realName dis
     id'
     displayName
     (realName ++ " (" ++ name ++ ")")
-    ("slack://user?team=" ++ teamId ++ "&id=" ++ id')
+    ("'slack://user?team=" ++ teamId ++ "&id=" ++ id' ++ "'")
     (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
   acc
 foldToItemFromMember (Just keyword) acc (Member id' teamId name _ (Profile realName displayName image) _)
@@ -149,7 +150,7 @@ foldToItemFromMember (Just keyword) acc (Member id' teamId name _ (Profile realN
       id'
       displayName
       (realName ++ " (" ++ name ++ ")")
-      ("slack://user?team=" ++ teamId ++ "&id=" ++ id')
+      ("'slack://user?team=" ++ teamId ++ "&id=" ++ id' ++ "'")
       (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
     acc
   | otherwise = acc

@@ -32,7 +32,7 @@ newtype ImagePath =
   ImagePath
     { path :: FilePath
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 $(deriveJSON defaultOptions ''ImagePath)
 
@@ -45,7 +45,7 @@ data Item =
     -- , autocomplete :: String
     , icon :: Maybe ImagePath
     }
-  deriving (Show)
+  deriving (Eq, Show)
 
 $(deriveJSON defaultOptions ''Item)
 
