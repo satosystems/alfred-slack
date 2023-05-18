@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string>io.github.satosystems.alfred-slack</string>
+	<key>category</key>
+	<string>Tools</string>
+	<key>connections</key>
+	<dict>
+		<key>C70949DD-925D-4E7B-9682-78911F9042C3</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>A9FD6125-952C-40C8-B519-2134890878FB</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+	</dict>
+	<key>createdby</key>
+	<string>Satoshi Ogata</string>
+	<key>description</key>
+	<string>Search Slack contents from Alfred</string>
+	<key>disabled</key>
+	<false/>
+	<key>name</key>
+	<string>Slack</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<true/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>0</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>keyword</key>
+				<string>{var:search_keyword}</string>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string>Please wait...</string>
+				<key>script</key>
+				<string>system('./alfred-slack search ' . join(' ', @ARGV));</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string></string>
+				<key>title</key>
+				<string>Slack Search</string>
+				<key>type</key>
+				<integer>4</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>C70949DD-925D-4E7B-9682-78911F9042C3</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>system('./alfred-slack open ' . @ARGV[0]);</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>4</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>A9FD6125-952C-40C8-B519-2134890878FB</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string>## Usage
+
+Get in-line suggestions from Slack’s search results via the [Slack API](https://api.slack.com/). Press &lt;kbd&gt;↩&lt;/kbd&gt; to open the search results page in your Slack app.
+
+![Slack in-line results](images/about/search-results.png)</string>
+	<key>uidata</key>
+	<dict>
+		<key>A9FD6125-952C-40C8-B519-2134890878FB</key>
+		<dict>
+			<key>note</key>
+			<string>launchd agent</string>
+			<key>xpos</key>
+			<real>230</real>
+			<key>ypos</key>
+			<real>80</real>
+		</dict>
+		<key>C70949DD-925D-4E7B-9682-78911F9042C3</key>
+		<dict>
+			<key>xpos</key>
+			<real>55</real>
+			<key>ypos</key>
+			<real>80</real>
+		</dict>
+	</dict>
+	<key>userconfigurationconfig</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>ss</string>
+				<key>placeholder</key>
+				<string>Search Keyword</string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string>Search Keyword</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>search_keyword</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string></string>
+				<key>placeholder</key>
+				<string>User OAuth Token</string>
+				<key>required</key>
+				<true/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>User OAuth Token of your Slack App</string>
+			<key>label</key>
+			<string>User OAuth Token</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>user_oauth_token</string>
+		</dict>
+	</array>
+	<key>variablesdontexport</key>
+	<array/>
+	<key>version</key>
+	<string>2.0.2</string>
+	<key>webaddress</key>
+	<string>https://github.com/satosystems/alfred-slack</string>
+</dict>
+</plist>
