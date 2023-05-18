@@ -31,6 +31,7 @@ library
       Network.Slack.API.ItemList
       Network.Slack.API.ItemListResponse
       Types
+      XML
   other-modules:
       Paths_alfred_slack
   hs-source-dirs:
@@ -56,6 +57,7 @@ library
     , time
     , unicode-transforms
     , unix
+    , xml-conduit
   default-language: Haskell2010
 
 executable alfred-slack
@@ -86,4 +88,5 @@ executable alfred-slack
     , time
     , unicode-transforms
     , unix
+    , xml-conduit
   default-language: Haskell2010
