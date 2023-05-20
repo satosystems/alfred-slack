@@ -96,12 +96,18 @@ infixOfIgnoreCase needle haystack =
       haystack' = T.toLower haystack
    in needle' `T.isInfixOf` haystack'
 
+formatPrettyMpdmIfNeeded :: T.Text -> T.Text
+formatPrettyMpdmIfNeeded name
+  | "mpdm-" `T.isPrefixOf` name && "-1" `T.isSuffixOf` name =
+    T.intercalate ", " $ T.splitOn "--" $ (T.init . T.init . T.drop 5) name
+  | otherwise = name
+
 foldToItemFromChannel :: [T.Text] -> [Item] -> Channel -> [Item]
 foldToItemFromChannel _ acc (Channel _ _ True _ _) = acc
 foldToItemFromChannel [] acc (Channel id' name _ teamId (Purpose value)) =
   Item
     id'
-    name
+    (formatPrettyMpdmIfNeeded name)
     value
     ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
     Nothing :
@@ -110,7 +116,7 @@ foldToItemFromChannel keywords acc (Channel id' name _ teamId (Purpose value))
   | all (`infixOfIgnoreCase` name) keywords =
     Item
       id'
-      name
+      (formatPrettyMpdmIfNeeded name)
       value
       ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
       Nothing :
