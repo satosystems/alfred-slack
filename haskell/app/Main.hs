@@ -5,6 +5,7 @@ module Main
 import System.Environment
 
 import Alfred (main')
+import Data.String.Conversions
 
 main :: IO ()
-main = getArgs >>= main'
+main = getArgs >>= main' . map cs

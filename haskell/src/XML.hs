@@ -4,14 +4,13 @@ module XML
   ( getValue
   ) where
 
-import Data.String.Conversions
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.IO as LTIO
 import System.Directory
 import Text.XML
 import Text.XML.Cursor
 
-getValue :: T.Text -> IO (Maybe String)
+getValue :: T.Text -> IO (Maybe T.Text)
 getValue name = do
   let configFile = "../alfred/prefs.plist"
   exists <- doesFileExist configFile
@@ -25,5 +24,5 @@ getValue name = do
             following &// content
       if null keys
         then return Nothing
-        else (return . Just . cs . head) keys
+        else (return . Just . head) keys
     else return Nothing

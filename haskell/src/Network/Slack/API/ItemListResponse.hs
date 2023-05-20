@@ -12,13 +12,14 @@ module Network.Slack.API.ItemListResponse
 import Data.Aeson
 import Data.Aeson.Casing
 import Data.Aeson.TH
+import qualified Data.Text as T
 
 import Types
 
 data Profile =
   Profile
-    { profileRealName :: String
-    , profileDisplayName :: String
+    { profileRealName :: T.Text
+    , profileDisplayName :: T.Text
     , profileImage_48 :: URL
     }
   deriving (Read, Show)
@@ -30,7 +31,7 @@ data Member =
   Member
     { memberId :: UserId
     , memberTeamId :: TeamId
-    , memberName :: String
+    , memberName :: T.Text
     , memberDeleted :: Bool
     , memberProfile :: Profile
     , memberIsBot :: Bool
@@ -42,7 +43,7 @@ $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 6} ''Member)
 -- makeLenses ''Member
 newtype Purpose =
   Purpose
-    { purposeValue :: String
+    { purposeValue :: T.Text
     }
   deriving (Read, Show)
 
@@ -51,7 +52,7 @@ $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Purpose)
 -- makeLenses ''Purpose
 newtype ResponseMetadata =
   ResponseMetadata
-    { responseMetadataNextCursor :: String
+    { responseMetadataNextCursor :: T.Text
     }
   deriving (Read, Show)
 
@@ -62,10 +63,10 @@ $(deriveJSON
 -- makeLenses ''ResponseMetadata
 data Channel =
   Channel
-    { channelId :: String
-    , channelName :: String
+    { channelId :: T.Text
+    , channelName :: T.Text
     , channelIsArchived :: Bool
-    , channelContextTeamId :: String
+    , channelContextTeamId :: T.Text
     , channelPurpose :: Purpose
     }
   deriving (Read, Show)

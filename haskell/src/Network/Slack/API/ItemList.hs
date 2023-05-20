@@ -15,11 +15,10 @@ import Control.Monad
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.CaseInsensitive as CI
-import Data.Char
-import Data.List (isInfixOf)
 import Data.Maybe
 import Data.String.Conversions
 import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import Data.Text.Normalize
 import Network.HTTP.Simple
 import System.Directory
@@ -35,9 +34,9 @@ apiPathMembers = "api/users.list"
 
 makeRequest ::
      B.ByteString
-  -> [(B.ByteString, String)]
+  -> [(B.ByteString, T.Text)]
   -> B.ByteString
-  -> [(B.ByteString, String)]
+  -> [(B.ByteString, T.Text)]
   -> Request
 makeRequest method headers path query =
   let headers' = foldl foldHeaders [] headers
@@ -49,10 +48,10 @@ makeRequest method headers path query =
       req4 = setRequestQueryString query' req3
    in req4
 
-foldQueryString :: Query -> (B.ByteString, String) -> Query
+foldQueryString :: Query -> (B.ByteString, T.Text) -> Query
 foldQueryString acc (k, v) = (k, Just $ cs v) : acc
 
-foldHeaders :: RequestHeaders -> (B.ByteString, String) -> RequestHeaders
+foldHeaders :: RequestHeaders -> (B.ByteString, T.Text) -> RequestHeaders
 foldHeaders acc (k, v) = (CI.mk k, cs v) : acc
 
 request :: Token -> Path -> IO ([Channel], [Member])
@@ -65,15 +64,15 @@ request token path = do
       return $ read contents
     else do
       results <- go ([], []) ""
-      writeCacheJSON cache $ show results
+      writeCacheJSON cache $ (cs . show) results
       return results
   where
     go :: ([Channel], [Member]) -> Cursor -> IO ([Channel], [Member])
     go acc@(channels, members) cursor = do
       let req =
-            makeRequest "GET" [("Authorization", "Bearer " ++ token)] (cs path) $
+            makeRequest "GET" [("Authorization", "Bearer " +++ token)] (cs path) $
             [("limit", "99999"), ("exclude_archived", "true")] ++
-            [("cursor", cursor) | (not . null) cursor] ++
+            [("cursor", cursor) | (not . T.null) cursor] ++
             [ ("types", "public_channel,private_channel,mpim")
             | path == apiPathChannels
             ]
@@ -86,25 +85,25 @@ request token path = do
                  channels' = fromMaybe [] mChannels
                  members' = fromMaybe [] mMembers
                  acc' = (channels ++ channels', members ++ members')
-              in if null nc
+              in if T.null nc
                    then return acc'
                    else go acc' nc
         else return acc
 
-infixOfIgnoreCase :: String -> String -> Bool
+infixOfIgnoreCase :: T.Text -> T.Text -> Bool
 infixOfIgnoreCase needle haystack =
-  let needle' = map toLower $ (cs . normalize NFC . cs) needle
-      haystack' = map toLower haystack
-   in needle' `isInfixOf` haystack'
+  let needle' = T.toLower $ normalize NFC needle
+      haystack' = T.toLower haystack
+   in needle' `T.isInfixOf` haystack'
 
-foldToItemFromChannel :: [String] -> [Item] -> Channel -> [Item]
+foldToItemFromChannel :: [T.Text] -> [Item] -> Channel -> [Item]
 foldToItemFromChannel _ acc (Channel _ _ True _ _) = acc
 foldToItemFromChannel [] acc (Channel id' name _ teamId (Purpose value)) =
   Item
     id'
     name
     value
-    ("'slack://channel?team=" ++ teamId ++ "&id=" ++ id' ++ "'")
+    ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
     Nothing :
   acc
 foldToItemFromChannel keywords acc (Channel id' name _ teamId (Purpose value))
@@ -113,7 +112,7 @@ foldToItemFromChannel keywords acc (Channel id' name _ teamId (Purpose value))
       id'
       name
       value
-      ("'slack://channel?team=" ++ teamId ++ "&id=" ++ id' ++ "'")
+      ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
       Nothing :
     acc
   | otherwise = acc
@@ -129,15 +128,15 @@ imagePath url =
       split' = drop 3 split
    in cs $ T.intercalate "/" split'
 
-foldToItemFromMember :: [String] -> [Item] -> Member -> [Item]
+foldToItemFromMember :: [T.Text] -> [Item] -> Member -> [Item]
 foldToItemFromMember _ acc (Member _ _ _ True _ _) = acc
 foldToItemFromMember _ acc (Member _ _ _ _ _ True) = acc
 foldToItemFromMember [] acc (Member id' teamId name _ (Profile realName displayName image) _) =
   Item
     id'
     displayName
-    (realName ++ " (" ++ name ++ ")")
-    ("'slack://user?team=" ++ teamId ++ "&id=" ++ id' ++ "'")
+    (realName +++ " (" +++ name +++ ")")
+    ("'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
     (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
   acc
 foldToItemFromMember keywords acc (Member id' teamId name _ (Profile realName displayName image) _)
@@ -148,18 +147,18 @@ foldToItemFromMember keywords acc (Member id' teamId name _ (Profile realName di
     Item
       id'
       displayName
-      (realName ++ " (" ++ name ++ ")")
-      ("'slack://user?team=" ++ teamId ++ "&id=" ++ id' ++ "'")
+      (realName +++ " (" +++ name +++ ")")
+      ("'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
       (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
     acc
   | otherwise = acc
 
-getChannels :: Token -> [String] -> IO [Item]
+getChannels :: Token -> [T.Text] -> IO [Item]
 getChannels token keywords = do
   (channels, _) <- request token apiPathChannels
   return $ foldl (foldToItemFromChannel keywords) [] channels
 
-getMembers :: Token -> [String] -> IO [Item]
+getMembers :: Token -> [T.Text] -> IO [Item]
 getMembers token keywords = do
   (_, members) <- request token apiPathMembers
   null keywords `when` downloadImage members
@@ -174,7 +173,7 @@ downloadImage members = do
       let filePath = (cacheFile . imagePath) image
       exist <- doesFileExist filePath
       exist `unless` do
-        let req = parseRequest_ $ "GET " ++ image
+        let req = parseRequest_ $ "GET " ++ cs image
         res <- httpLBS req
         let body = getResponseBody res
         writeCacheImage filePath body
@@ -183,11 +182,11 @@ parentDirectory :: FilePath -> FilePath
 parentDirectory filePath =
   cs $ T.intercalate "/" $ init $ T.splitOn "/" $ cs filePath
 
-writeCacheJSON :: FilePath -> String -> IO ()
+writeCacheJSON :: FilePath -> T.Text -> IO ()
 writeCacheJSON filePath contents = do
   let dir = parentDirectory filePath
   createDirectoryIfMissing True dir
-  writeFile filePath contents
+  TIO.writeFile filePath contents
 
 writeCacheImage :: FilePath -> LB.ByteString -> IO ()
 writeCacheImage filePath contents = do

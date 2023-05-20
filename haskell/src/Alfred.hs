@@ -9,6 +9,7 @@ import Control.Monad
 import Data.Aeson
 import Data.List.Utils
 import Data.String.Conversions
+import qualified Data.Text as T
 import Data.Time.Clock.System
 import Network.Slack.API.ItemList
 import System.Directory
@@ -22,7 +23,7 @@ import qualified XML
 usedArgsFilePath :: FilePath
 usedArgsFilePath = cacheFile ".usedArgs"
 
-loadUsedArgs :: IO [String]
+loadUsedArgs :: IO [T.Text]
 loadUsedArgs = do
   exists <- doesFileExist usedArgsFilePath
   if exists
@@ -32,31 +33,31 @@ loadUsedArgs = do
       return usedArg
     else return []
 
-addUsedArg :: String -> IO ()
+addUsedArg :: T.Text -> IO ()
 addUsedArg arg = do
   usedArg <- loadUsedArgs
   mNumberOfSelectedCaches <- XML.getValue "number_of_selected_caches"
-  let numberOfSelectedCaches = maybe 20 read mNumberOfSelectedCaches
+  let numberOfSelectedCaches = maybe 20 (read . cs) mNumberOfSelectedCaches
   let newUsedArgs = take numberOfSelectedCaches . uniq $ arg : usedArg
   writeFile usedArgsFilePath $ show newUsedArgs
 
-sortUsedArgsFirst :: [Item] -> [String] -> [Item]
+sortUsedArgsFirst :: [Item] -> [T.Text] -> [Item]
 sortUsedArgsFirst items usedArgs =
-  go [] (zip (map (tail . init . arg) items) items) $ reverse usedArgs
+  go [] (zip (map (T.tail . T.init . arg) items) items) $ reverse usedArgs
   where
-    go :: [Item] -> [(String, Item)] -> [String] -> [Item]
+    go :: [Item] -> [(T.Text, Item)] -> [T.Text] -> [Item]
     go hit base [] = uniq $ hit ++ map snd base
     go hit base (x:xs) =
       case x `lookup` base of
         Nothing -> go hit base xs
         Just item -> go (item : hit) base xs
 
-open :: String -> IO ()
+open :: T.Text -> IO ()
 open url = do
-  _ <- system $ "open '" ++ url ++ "'"
+  _ <- system $ "open '" ++ cs url ++ "'"
   return ()
 
-main' :: [String] -> IO ()
+main' :: [T.Text] -> IO ()
 main' args = do
   case head args of
     "open" ->
@@ -102,6 +103,7 @@ main' args = do
                       { uid = ""
                       , title = "Done."
                       , subtitle =
+                          cs $
                           show seconds' ++
                           "." ++ take 2 (show nanoseconds') ++ " sec"
                       , arg = ""
