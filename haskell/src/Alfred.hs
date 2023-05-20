@@ -34,16 +34,16 @@ loadUsedArgs = do
     else return []
 
 addUsedArg :: T.Text -> IO ()
-addUsedArg arg = do
+addUsedArg arg' = do
   usedArg <- loadUsedArgs
   mNumberOfSelectedCaches <- XML.getValue "number_of_selected_caches"
   let numberOfSelectedCaches = maybe 20 (read . cs) mNumberOfSelectedCaches
-  let newUsedArgs = take numberOfSelectedCaches . uniq $ arg : usedArg
+  let newUsedArgs = take numberOfSelectedCaches . uniq $ arg' : usedArg
   writeFile usedArgsFilePath $ show newUsedArgs
 
 sortUsedArgsFirst :: [Item] -> [T.Text] -> [Item]
-sortUsedArgsFirst items usedArgs =
-  go [] (zip (map (T.tail . T.init . arg) items) items) $ reverse usedArgs
+sortUsedArgsFirst items' usedArgs =
+  go [] (zip (map (T.tail . T.init . arg) items') items') $ reverse usedArgs
   where
     go :: [Item] -> [(T.Text, Item)] -> [T.Text] -> [Item]
     go hit base [] = uniq $ hit ++ map snd base
@@ -61,9 +61,9 @@ main' :: [T.Text] -> IO ()
 main' args = do
   case head args of
     "open" ->
-      let arg = args !! 1
-       in do open arg
-             addUsedArg arg
+      let arg' = args !! 1
+       in do open arg'
+             addUsedArg arg'
     "search" -> do
       mToken <- XML.getValue "user_oauth_token"
       case (mToken, args !! 1) of
@@ -116,7 +116,7 @@ main' args = do
           a2 <- async $ getMembers token $ tail args
           channels <- wait a1
           members <- wait a2
-          let items =
+          let items' =
                 if null channels && null members
                   then [ Item
                            { uid = ""
@@ -128,7 +128,7 @@ main' args = do
                        ]
                   else members ++ channels -- Note: There are so many channels, so I'll prioritize members.
           usedArgs <- loadUsedArgs
-          let sortedItems = sortUsedArgsFirst items usedArgs
+          let sortedItems = sortUsedArgsFirst items' usedArgs
           putStrLn $
             cs $
             encode $

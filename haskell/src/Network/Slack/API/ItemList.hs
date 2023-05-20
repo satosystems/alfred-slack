@@ -38,13 +38,13 @@ makeRequest ::
   -> B.ByteString
   -> [(B.ByteString, T.Text)]
   -> Request
-makeRequest method headers path query =
+makeRequest method headers path' query =
   let headers' = foldl foldHeaders [] headers
       query' = foldl foldQueryString [] query
       req0 = parseRequest_ "https://api.slack.com/"
       req1 = setRequestMethod method req0
       req2 = setRequestHeaders headers' req1
-      req3 = setRequestPath path req2
+      req3 = setRequestPath path' req2
       req4 = setRequestQueryString query' req3
    in req4
 
@@ -55,8 +55,8 @@ foldHeaders :: RequestHeaders -> (B.ByteString, T.Text) -> RequestHeaders
 foldHeaders acc (k, v) = (CI.mk k, cs v) : acc
 
 request :: Token -> Path -> IO ([Channel], [Member])
-request token path = do
-  let cache = cacheFile path
+request token path' = do
+  let cache = cacheFile path'
   exist <- doesFileExist cache
   if exist
     then do
@@ -70,11 +70,14 @@ request token path = do
     go :: ([Channel], [Member]) -> Cursor -> IO ([Channel], [Member])
     go acc@(channels, members) cursor = do
       let req =
-            makeRequest "GET" [("Authorization", "Bearer " +++ token)] (cs path) $
+            makeRequest
+              "GET"
+              [("Authorization", "Bearer " +++ token)]
+              (cs path') $
             [("limit", "99999"), ("exclude_archived", "true")] ++
             [("cursor", cursor) | (not . T.null) cursor] ++
             [ ("types", "public_channel,private_channel,mpim")
-            | path == apiPathChannels
+            | path' == apiPathChannels
             ]
       res <- httpJSON req
       let ListResponse ok mChannels mMembers mMetadata = getResponseBody res
@@ -201,7 +204,7 @@ writeCacheImage filePath contents = do
   LB.writeFile filePath contents
 
 cacheFile :: Path -> FilePath
-cacheFile path = ".cache/" ++ path
+cacheFile path' = ".cache/" ++ path'
 
 removeFileIfExist :: FilePath -> IO ()
 removeFileIfExist filePath = do
