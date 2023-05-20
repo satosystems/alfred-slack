@@ -21,7 +21,6 @@ import Data.Maybe
 import Data.String.Conversions
 import qualified Data.Text as T
 import Data.Text.Normalize
-import Debug.Trace
 import Network.HTTP.Simple
 import System.Directory
 
