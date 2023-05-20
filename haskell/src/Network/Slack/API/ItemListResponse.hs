@@ -26,7 +26,6 @@ data Profile =
 
 $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Profile)
 
--- makeLenses ''Profile
 data Member =
   Member
     { memberId :: UserId
@@ -40,7 +39,6 @@ data Member =
 
 $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 6} ''Member)
 
--- makeLenses ''Member
 newtype Purpose =
   Purpose
     { purposeValue :: T.Text
@@ -49,7 +47,6 @@ newtype Purpose =
 
 $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Purpose)
 
--- makeLenses ''Purpose
 newtype ResponseMetadata =
   ResponseMetadata
     { responseMetadataNextCursor :: T.Text
@@ -60,7 +57,6 @@ $(deriveJSON
     defaultOptions {fieldLabelModifier = snakeCase . drop 16}
     ''ResponseMetadata)
 
--- makeLenses ''ResponseMetadata
 data Channel =
   Channel
     { channelId :: T.Text
@@ -73,7 +69,6 @@ data Channel =
 
 $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Channel)
 
--- makeLenses ''Channel
 data ListResponse =
   ListResponse
     { listResponseOk :: Bool
@@ -86,4 +81,3 @@ data ListResponse =
 $(deriveJSON
     defaultOptions {fieldLabelModifier = snakeCase . drop 12}
     ''ListResponse)
--- makeLenses ''ListResponse
