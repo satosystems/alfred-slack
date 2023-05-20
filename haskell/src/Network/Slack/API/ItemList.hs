@@ -50,10 +50,10 @@ makeRequest method headers path query =
    in req4
 
 foldQueryString :: Query -> (B.ByteString, String) -> Query
-foldQueryString acc (k, v) = (k, Just $ convertString v) : acc
+foldQueryString acc (k, v) = (k, Just $ cs v) : acc
 
 foldHeaders :: RequestHeaders -> (B.ByteString, String) -> RequestHeaders
-foldHeaders acc (k, v) = (CI.mk k, convertString v) : acc
+foldHeaders acc (k, v) = (CI.mk k, cs v) : acc
 
 request :: Token -> Path -> IO ([Channel], [Member])
 request token path = do
@@ -71,10 +71,7 @@ request token path = do
     go :: ([Channel], [Member]) -> Cursor -> IO ([Channel], [Member])
     go acc@(channels, members) cursor = do
       let req =
-            makeRequest
-              "GET"
-              [("Authorization", "Bearer " ++ token)]
-              (convertString path) $
+            makeRequest "GET" [("Authorization", "Bearer " ++ token)] (cs path) $
             [("limit", "99999"), ("exclude_archived", "true")] ++
             [("cursor", cursor) | (not . null) cursor] ++
             [ ("types", "public_channel,private_channel,mpim")
@@ -96,8 +93,7 @@ request token path = do
 
 infixOfIgnoreCase :: String -> String -> Bool
 infixOfIgnoreCase needle haystack =
-  let needle' =
-        map toLower $ (convertString . normalize NFC . convertString) needle
+  let needle' = map toLower $ (cs . normalize NFC . cs) needle
       haystack' = map toLower haystack
    in needle' `isInfixOf` haystack'
 
@@ -129,9 +125,9 @@ foldToItemFromChannel keywords acc (Channel id' name _ teamId (Purpose value))
 -- >>> "80588/img/slackbot_48.png"
 imagePath :: URL -> FilePath
 imagePath url =
-  let split = T.splitOn "/" $ convertString url
+  let split = T.splitOn "/" $ cs url
       split' = drop 3 split
-   in convertString $ T.intercalate "/" split'
+   in cs $ T.intercalate "/" split'
 
 foldToItemFromMember :: [String] -> [Item] -> Member -> [Item]
 foldToItemFromMember _ acc (Member _ _ _ True _ _) = acc
@@ -185,8 +181,7 @@ downloadImage members = do
 
 parentDirectory :: FilePath -> FilePath
 parentDirectory filePath =
-  convertString $
-  T.intercalate "/" $ init $ T.splitOn "/" $ convertString filePath
+  cs $ T.intercalate "/" $ init $ T.splitOn "/" $ cs filePath
 
 writeCacheJSON :: FilePath -> String -> IO ()
 writeCacheJSON filePath contents = do

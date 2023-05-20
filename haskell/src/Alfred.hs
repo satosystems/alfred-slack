@@ -92,7 +92,7 @@ main' args = do
                   then (seconds - 1, abs nanoseconds)
                   else (seconds, nanoseconds)
           putStrLn $
-            convertString $
+            cs $
             encode $
             SearchResult
               { skipknowledge = True
@@ -128,7 +128,7 @@ main' args = do
           usedArgs <- loadUsedArgs
           let sortedItems = sortUsedArgsFirst items usedArgs
           putStrLn $
-            convertString $
+            cs $
             encode $
             SearchResult
               { skipknowledge = True
