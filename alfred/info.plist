@@ -174,6 +174,27 @@ Get in-line suggestions from Slack’s search results via the [Slack API](https:
 			<key>variable</key>
 			<string>user_oauth_token</string>
 		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<string>20</string>
+				<key>placeholder</key>
+				<string>Number of selected caches</string>
+				<key>required</key>
+				<false/>
+				<key>trim</key>
+				<true/>
+			</dict>
+			<key>description</key>
+			<string>Keep the selected member or channel for this number of times to appear at the top of the list</string>
+			<key>label</key>
+			<string>Number of selected caches</string>
+			<key>type</key>
+			<string>textfield</string>
+			<key>variable</key>
+			<string>number_of_selected_caches</string>
+		</dict>
 	</array>
 	<key>variablesdontexport</key>
 	<array/>

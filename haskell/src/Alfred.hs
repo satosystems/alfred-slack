@@ -35,7 +35,9 @@ loadUsedArgs = do
 addUsedArg :: String -> IO ()
 addUsedArg arg = do
   usedArg <- loadUsedArgs
-  let newUsedArgs = take 100 . uniq $ arg : usedArg
+  mNumberOfSelectedCaches <- XML.getValue "number_of_selected_caches"
+  let numberOfSelectedCaches = maybe 20 read mNumberOfSelectedCaches
+  let newUsedArgs = take numberOfSelectedCaches . uniq $ arg : usedArg
   writeFile usedArgsFilePath $ show newUsedArgs
 
 sortUsedArgsFirst :: [Item] -> [String] -> [Item]
