@@ -13,7 +13,7 @@ alfred/alfred-slack: $(SRCS)
 .PHONY: clean
 clean:
 	cd $(MAKEFILE_DIR)/haskell && stack clean
-	alfred/alfred-slack
+	rm -f alfred/alfred-slack
 
 .PHONY: help
 help:
