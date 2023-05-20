@@ -18,11 +18,11 @@ getValue name = do
     then do
       text <- LTIO.readFile configFile
       let cursor = fromDocument $ parseText_ def text
-      let keys =
+      let values =
             cursor $// element "key" >=>
             checkElement (\x -> elementNodes x == [NodeContent name]) >=>
             following &// content
-      if null keys
+      if null values
         then return Nothing
-        else (return . Just . head) keys
+        else (return . Just . head) values
     else return Nothing
