@@ -17,7 +17,7 @@ import qualified System.IO.Strict as SIO
 import System.Process
 
 import Types
-import XML
+import qualified XML
 
 usedArgsFilePath :: FilePath
 usedArgsFilePath = cacheFile ".usedArgs"
@@ -62,7 +62,7 @@ main' args = do
        in do open arg
              addUsedArg arg
     "search" -> do
-      mToken <- getUserOAuthToken
+      mToken <- XML.getValue "user_oauth_token"
       case (mToken, args !! 1) of
         (Nothing, _) ->
           print
