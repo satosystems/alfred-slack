@@ -130,7 +130,7 @@ foldToItemFromChannel keywords acc (Channel id' name _ teamId (Purpose value))
 -- Get path from URL.
 --
 -- >>> imagePath "https://a.slack-edge.com/80588/img/slackbot_48.png"
--- >>> "80588/img/slackbot_48.png"
+-- "80588/img/slackbot_48.png"
 imagePath :: URL -> FilePath
 imagePath url =
   let split = T.splitOn "/" $ cs url
