@@ -7,6 +7,9 @@ module Network.Slack.API.ItemListResponse
   , Member(..)
   , ResponseMetadata(..)
   , ListResponse(..)
+  , Messages(..)
+  , Match(..)
+  , MatchChannel(..)
   ) where
 
 import Data.Aeson
@@ -69,11 +72,45 @@ data Channel =
 
 $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Channel)
 
+data MatchChannel =
+  MatchChannel
+    { matchChannelIsChannel :: Bool
+    , matchChannelIsGroup :: Bool
+    , matchChannelIsMpim :: Bool
+    , matchChannelName :: T.Text
+    }
+  deriving (Read, Show)
+
+$(deriveJSON
+    defaultOptions {fieldLabelModifier = snakeCase . drop 12}
+    ''MatchChannel)
+
+data Match =
+  Match
+    { matchIid :: T.Text
+    , matchChannel :: MatchChannel
+    , matchUsername :: T.Text
+    , matchText :: T.Text
+    , matchPermalink :: T.Text
+    }
+  deriving (Read, Show)
+
+$(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 5} ''Match)
+
+newtype Messages =
+  Messages
+    { messagesMatches :: [Match]
+    }
+  deriving (Read, Show)
+
+$(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 8} ''Messages)
+
 data ListResponse =
   ListResponse
     { listResponseOk :: Bool
     , listResponseChannels :: Maybe [Channel]
     , listResponseMembers :: Maybe [Member]
+    , listResponseMessages :: Maybe Messages
     , listResponseResponseMetadata :: Maybe ResponseMetadata -- FIXME
     }
   deriving (Read, Show)

@@ -112,12 +112,17 @@ main' args = do
                   ]
               }
         (Just token, _) -> do
-          a1 <- async $ getChannels token $ tail args
-          a2 <- async $ getMembers token $ tail args
+          let keywords = tail args
+          a1 <- async $ getChannels token keywords
+          a2 <- async $ getMembers token keywords
           channels <- wait a1
           members <- wait a2
-          let items' =
-                if null channels && null members
+          items' <-
+            if null channels && null members && length keywords == 1
+              then searchMessages token $ head keywords
+              else return $ members ++ channels -- Note: There are so many channels, so I'll prioritize members.
+          let items'' =
+                if null items'
                   then [ Item
                            { uid = ""
                            , title = "NO MATCH."
@@ -126,9 +131,9 @@ main' args = do
                            , icon = Nothing
                            }
                        ]
-                  else members ++ channels -- Note: There are so many channels, so I'll prioritize members.
+                  else items'
           usedArgs <- loadUsedArgs
-          let sortedItems = sortUsedArgsFirst items' usedArgs
+          let sortedItems = sortUsedArgsFirst items'' usedArgs
           putStrLn $
             cs $
             encode $

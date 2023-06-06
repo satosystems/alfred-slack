@@ -4,6 +4,7 @@ module Network.Slack.API.ItemList
     -- * API request
   ( getChannels
   , getMembers
+  , searchMessages
     -- * Cache control
   , cacheFile
   , clearChannelsCache
@@ -32,6 +33,9 @@ apiPathChannels = "api/conversations.list"
 apiPathMembers :: Path
 apiPathMembers = "api/users.list"
 
+apiPathMessages :: Path
+apiPathMessages = "api/search.messages"
+
 makeRequest ::
      B.ByteString
   -> [(B.ByteString, T.Text)]
@@ -54,8 +58,8 @@ foldQueryString acc (k, v) = (k, Just $ cs v) : acc
 foldHeaders :: RequestHeaders -> (B.ByteString, T.Text) -> RequestHeaders
 foldHeaders acc (k, v) = (CI.mk k, cs v) : acc
 
-request :: Token -> Path -> IO ([Channel], [Member])
-request token path' = do
+getChannelsOrMembers :: Token -> Path -> IO ([Channel], [Member])
+getChannelsOrMembers token path' = do
   let cache = cacheFile path'
   exist <- doesFileExist cache
   if exist
@@ -80,7 +84,7 @@ request token path' = do
             | path' == apiPathChannels
             ]
       res <- httpJSON req
-      let ListResponse ok mChannels mMembers mMetadata = getResponseBody res
+      let ListResponse ok mChannels mMembers _ mMetadata = getResponseBody res
       if ok
         then let nc =
                    responseMetadataNextCursor $
@@ -164,14 +168,41 @@ foldToItemFromMember keywords acc (Member id' teamId name _ (Profile realName di
 
 getChannels :: Token -> [T.Text] -> IO [Item]
 getChannels token keywords = do
-  (channels, _) <- request token apiPathChannels
+  (channels, _) <- getChannelsOrMembers token apiPathChannels
   return $ foldl (foldToItemFromChannel keywords) [] channels
 
 getMembers :: Token -> [T.Text] -> IO [Item]
 getMembers token keywords = do
-  (_, members) <- request token apiPathMembers
+  (_, members) <- getChannelsOrMembers token apiPathMembers
   null keywords `when` downloadImage members
   return $ foldl (foldToItemFromMember keywords) [] members
+
+searchMessages :: Token -> T.Text -> IO [Item]
+searchMessages token query = do
+  let req =
+        makeRequest
+          "GET"
+          [("Authorization", "Bearer " +++ token)]
+          (cs apiPathMessages)
+          [("count", "999999999999999999"), ("query", query)]
+  res <- httpJSON req
+  let ListResponse ok _ _ mMessages _ = getResponseBody res
+  if ok
+    then case mMessages of
+           Nothing -> return []
+           Just (Messages matches) -> return $ map toItem matches
+    else return []
+  where
+    toItem :: Match -> Item
+    toItem (Match iid (MatchChannel isChannel isGroup isMpim name) username text permalink) =
+      Item iid text subtitle' permalink Nothing
+      where
+        subtitle' :: T.Text
+        subtitle' =
+          case (isChannel || isGroup, isMpim) of
+            (_, True) -> formatPrettyMpdmIfNeeded name
+            (True, _) -> name
+            _ -> username
 
 downloadImage :: [Member] -> IO ()
 downloadImage members = do
