@@ -116,7 +116,7 @@ foldToItemFromChannel [] acc (Channel id' name _ teamId (Purpose value)) =
     id'
     (formatPrettyMpdmIfNeeded name)
     value
-    ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
+    (Just ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
     Nothing :
   acc
 foldToItemFromChannel keywords acc (Channel id' name _ teamId (Purpose value))
@@ -125,7 +125,7 @@ foldToItemFromChannel keywords acc (Channel id' name _ teamId (Purpose value))
       id'
       (formatPrettyMpdmIfNeeded name)
       value
-      ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
+      (Just ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
       Nothing :
     acc
   | otherwise = acc
@@ -149,7 +149,7 @@ foldToItemFromMember [] acc (Member id' teamId name _ (Profile realName displayN
     id'
     displayName
     (realName +++ " (" +++ name +++ ")")
-    ("'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
+    (Just ("'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
     (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
   acc
 foldToItemFromMember keywords acc (Member id' teamId name _ (Profile realName displayName image) _)
@@ -161,7 +161,7 @@ foldToItemFromMember keywords acc (Member id' teamId name _ (Profile realName di
       id'
       displayName
       (realName +++ " (" +++ name +++ ")")
-      ("'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
+      (Just ("'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
       (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
     acc
   | otherwise = acc
@@ -195,7 +195,7 @@ searchMessages token query = do
   where
     toItem :: Match -> Item
     toItem (Match iid (MatchChannel isChannel isGroup isMpim name) username text permalink) =
-      Item iid text subtitle' permalink Nothing
+      Item iid text subtitle' (Just permalink) Nothing
       where
         subtitle' :: T.Text
         subtitle' =

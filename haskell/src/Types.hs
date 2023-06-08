@@ -50,7 +50,7 @@ data Item =
     { uid :: T.Text
     , title :: T.Text
     , subtitle :: T.Text
-    , arg :: T.Text
+    , arg :: Maybe T.Text
     -- , autocomplete :: T.Text
     , icon :: Maybe ImagePath
     }

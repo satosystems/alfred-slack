@@ -8,6 +8,7 @@ import Control.Concurrent.Async
 import Control.Monad
 import Data.Aeson
 import Data.List.Utils
+import Data.Maybe
 import Data.String.Conversions
 import qualified Data.Text as T
 import Data.Time.Clock.System
@@ -43,7 +44,8 @@ addUsedArg arg' = do
 
 sortUsedArgsFirst :: [Item] -> [T.Text] -> [Item]
 sortUsedArgsFirst items' usedArgs =
-  go [] (zip (map (T.tail . T.init . arg) items') items') $ reverse usedArgs
+  go [] (zip (map (T.tail . T.init . fromMaybe "\"\"" . arg) items') items') $
+  reverse usedArgs
   where
     go :: [Item] -> [(T.Text, Item)] -> [T.Text] -> [Item]
     go hit base [] = uniq $ hit ++ map snd base
@@ -73,7 +75,7 @@ main' args = do
                 { uid = ""
                 , title = "Oops!"
                 , subtitle = "Please set User OAuth Token to config."
-                , arg = "''"
+                , arg = Nothing
                 , icon = Nothing
                 }
             ]
@@ -106,7 +108,7 @@ main' args = do
                           cs $
                           show seconds' ++
                           "." ++ take 2 (show nanoseconds') ++ " sec"
-                      , arg = ""
+                      , arg = Nothing
                       , icon = Nothing
                       }
                   ]
@@ -127,7 +129,7 @@ main' args = do
                            { uid = ""
                            , title = "NO MATCH."
                            , subtitle = "Please change keyword."
-                           , arg = "''"
+                           , arg = Nothing
                            , icon = Nothing
                            }
                        ]
