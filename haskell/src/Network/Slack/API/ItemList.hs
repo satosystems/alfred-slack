@@ -194,7 +194,7 @@ searchMessages token query = do
     else return []
   where
     toItem :: Match -> Item
-    toItem (Match iid team (MatchChannel id' isChannel isGroup isMpim name) username ts text) =
+    toItem (Match iid team (MatchChannel id' isChannel isGroup isMpim name) username ts text permalink) =
       Item iid text subtitle' arg' Nothing
       where
         subtitle' :: T.Text
@@ -203,11 +203,25 @@ searchMessages token query = do
             (_, True) -> formatPrettyMpdmIfNeeded name
             (True, _) -> name
             _ -> username
+        threadTs :: T.Text
+        threadTs =
+          let split = T.splitOn "=" permalink
+           in if length split == 1
+                then ""
+                else last split
         arg' :: Maybe T.Text
         arg' =
           Just $
           "'slack://channel?team=" +++
-          team +++ "&id=" +++ id' +++ "&message=" +++ ts +++ "&host=slack.com'"
+          team +++
+          "&id=" +++
+          id' +++
+          "&message=" +++
+          ts +++
+          (if ts == threadTs
+             then ""
+             else "&thread_ts=" +++ threadTs) +++
+          "&host=slack.com'"
 
 downloadImage :: [Member] -> IO ()
 downloadImage members = do

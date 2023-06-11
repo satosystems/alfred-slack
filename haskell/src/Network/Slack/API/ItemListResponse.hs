@@ -94,6 +94,7 @@ data Match =
     , matchUsername :: T.Text
     , matchTs :: T.Text
     , matchText :: T.Text
+    , matchPermalink :: T.Text
     }
   deriving (Read, Show)
 
