@@ -194,8 +194,8 @@ searchMessages token query = do
     else return []
   where
     toItem :: Match -> Item
-    toItem (Match iid (MatchChannel isChannel isGroup isMpim name) username text permalink) =
-      Item iid text subtitle' (Just permalink) Nothing
+    toItem (Match iid team (MatchChannel id' isChannel isGroup isMpim name) username ts text) =
+      Item iid text subtitle' arg' Nothing
       where
         subtitle' :: T.Text
         subtitle' =
@@ -203,6 +203,11 @@ searchMessages token query = do
             (_, True) -> formatPrettyMpdmIfNeeded name
             (True, _) -> name
             _ -> username
+        arg' :: Maybe T.Text
+        arg' =
+          Just $
+          "'slack://channel?team=" +++
+          team +++ "&id=" +++ id' +++ "&message=" +++ ts +++ "&host=slack.com'"
 
 downloadImage :: [Member] -> IO ()
 downloadImage members = do

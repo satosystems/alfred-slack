@@ -74,7 +74,8 @@ $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Channel)
 
 data MatchChannel =
   MatchChannel
-    { matchChannelIsChannel :: Bool
+    { matchChannelId :: T.Text
+    , matchChannelIsChannel :: Bool
     , matchChannelIsGroup :: Bool
     , matchChannelIsMpim :: Bool
     , matchChannelName :: T.Text
@@ -88,10 +89,11 @@ $(deriveJSON
 data Match =
   Match
     { matchIid :: T.Text
+    , matchTeam :: T.Text
     , matchChannel :: MatchChannel
     , matchUsername :: T.Text
+    , matchTs :: T.Text
     , matchText :: T.Text
-    , matchPermalink :: T.Text
     }
   deriving (Read, Show)
 
