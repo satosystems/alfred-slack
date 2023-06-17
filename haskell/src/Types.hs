@@ -51,7 +51,6 @@ data Item =
     , title :: T.Text
     , subtitle :: T.Text
     , arg :: Maybe T.Text
-    -- , autocomplete :: T.Text
     , icon :: Maybe ImagePath
     }
   deriving (Eq, Show)
