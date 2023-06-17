@@ -2,10 +2,10 @@ module Main
   ( main
   ) where
 
+import Data.String.Conversions
 import System.Environment
 
 import Alfred (main')
-import Data.String.Conversions
 
 main :: IO ()
 main = getArgs >>= main' . map cs
