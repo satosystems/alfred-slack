@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Network.Slack.API.ItemListResponse
+module SlackResponse
   ( Purpose(..)
   , Channel(..)
   , Profile(..)

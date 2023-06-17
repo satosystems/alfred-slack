@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Network.Slack.API.ItemList
+module Slack
     -- * API request
   ( getChannels
   , getMembers
@@ -24,7 +24,7 @@ import Data.Text.Normalize
 import Network.HTTP.Simple
 import System.Directory
 
-import Network.Slack.API.ItemListResponse
+import SlackResponse
 import Types
 
 apiPathChannels :: Path

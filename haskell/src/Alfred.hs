@@ -12,12 +12,12 @@ import Data.Maybe
 import Data.String.Conversions
 import qualified Data.Text as T
 import Data.Time.Clock.System
-import Network.Slack.API.ItemList
 import System.Directory
 import System.Exit
 import qualified System.IO.Strict as SIO
 import System.Process
 
+import Slack
 import Types
 import qualified XML
 
