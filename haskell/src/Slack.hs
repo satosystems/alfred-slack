@@ -11,21 +11,43 @@ module Slack
   , clearMembersCache
   ) where
 
-import Control.Concurrent.Async
-import Control.Monad
+import Control.Concurrent.Async (mapConcurrently_)
+import Control.Monad (unless, when)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.CaseInsensitive as CI
-import Data.Maybe
-import Data.String.Conversions
+import Data.Maybe (fromMaybe)
+import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Data.Text.Normalize
+import Data.Text.Normalize (NormalizationMode(NFC), normalize)
 import Network.HTTP.Simple
-import System.Directory
+  ( Query
+  , Request
+  , RequestHeaders
+  , getResponseBody
+  , httpJSON
+  , httpLBS
+  , parseRequest_
+  , setRequestHeaders
+  , setRequestMethod
+  , setRequestPath
+  , setRequestQueryString
+  )
+import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 
 import SlackResponse
-import Types
+  ( Channel(Channel)
+  , ListResponse(ListResponse)
+  , Match(Match)
+  , MatchChannel(MatchChannel)
+  , Member(Member, memberProfile)
+  , Messages(Messages)
+  , Profile(Profile, profileImage_48)
+  , Purpose(Purpose)
+  , ResponseMetadata(ResponseMetadata, responseMetadataNextCursor)
+  )
+import Types (Cursor, ImagePath(ImagePath), Item(Item), Path, Token, URL, (+++))
 
 apiPathChannels :: Path
 apiPathChannels = "api/conversations.list"

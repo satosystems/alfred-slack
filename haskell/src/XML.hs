@@ -6,9 +6,18 @@ module XML
 
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.IO as LTIO
-import System.Directory
-import Text.XML
+import System.Directory (doesFileExist)
+import Text.XML (Element(elementNodes), Node(NodeContent), def, parseText_)
 import Text.XML.Cursor
+  ( ($//)
+  , (&//)
+  , (>=>)
+  , checkElement
+  , content
+  , element
+  , following
+  , fromDocument
+  )
 
 getValue :: T.Text -> IO (Maybe T.Text)
 getValue name = do

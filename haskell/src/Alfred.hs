@@ -4,21 +4,35 @@ module Alfred
   ( main'
   ) where
 
-import Control.Concurrent.Async
-import Control.Monad
-import Data.Aeson
-import Data.List.Utils
-import Data.Maybe
-import Data.String.Conversions
+import Control.Concurrent.Async (async, wait)
+import Control.Monad (void)
+import Data.Aeson (encode)
+import Data.List.Utils (uniq)
+import Data.Maybe (fromMaybe)
+import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import Data.Time.Clock.System
-import System.Directory
-import System.Exit
+  ( SystemTime(systemNanoseconds, systemSeconds)
+  , getSystemTime
+  )
+import System.Directory (doesFileExist)
+import System.Exit (exitFailure)
 import qualified System.IO.Strict as SIO
-import System.Process
+import System.Process (system)
 
 import Slack
+  ( cacheFile
+  , clearChannelsCache
+  , clearMembersCache
+  , getChannels
+  , getMembers
+  , searchMessages
+  )
 import Types
+  ( Item(..)
+  , SearchResult(SearchResult, items, skipknowledge, variables)
+  , Variables(Variables, oldArgv, oldResults)
+  )
 import qualified XML
 
 usedArgsFilePath :: FilePath

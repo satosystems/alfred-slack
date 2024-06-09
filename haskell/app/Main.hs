@@ -2,8 +2,8 @@ module Main
   ( main
   ) where
 
-import Data.String.Conversions
-import System.Environment
+import Data.String.Conversions (cs)
+import System.Environment (getArgs)
 
 import Alfred (main')
 

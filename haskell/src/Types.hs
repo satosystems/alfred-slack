@@ -14,8 +14,8 @@ module Types
   , Variables(..)
   ) where
 
-import Data.Aeson
-import Data.Aeson.TH
+import Data.Aeson (defaultOptions)
+import Data.Aeson.TH (deriveJSON)
 import qualified Data.Text as T
 
 (+++) :: T.Text -> T.Text -> T.Text

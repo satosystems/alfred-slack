@@ -12,12 +12,12 @@ module SlackResponse
   , MatchChannel(..)
   ) where
 
-import Data.Aeson
-import Data.Aeson.Casing
-import Data.Aeson.TH
+import Data.Aeson (Options(fieldLabelModifier), defaultOptions)
+import Data.Aeson.Casing (snakeCase)
+import Data.Aeson.TH (deriveJSON)
 import qualified Data.Text as T
 
-import Types
+import Types (TeamId, URL, UserId)
 
 data Profile =
   Profile
