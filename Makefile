@@ -8,7 +8,7 @@ build: alfred/alfred-slack
 
 alfred/alfred-slack: $(SRCS)
 	cd $(MAKEFILE_DIR)/haskell && stack build
-	cp $(MAKEFILE_DIR)/haskell/.stack-work/dist/aarch64-osx/Cabal-*/build/alfred-slack/alfred-slack alfred
+	cp $(MAKEFILE_DIR)/haskell/.stack-work/dist/aarch64-osx/*-*/build/alfred-slack/alfred-slack alfred
 
 .PHONY: clean
 clean:
