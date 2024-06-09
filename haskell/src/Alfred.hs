@@ -7,6 +7,7 @@ module Alfred
 import Control.Concurrent.Async (async, wait)
 import Control.Monad (void)
 import Data.Aeson (encode)
+import Data.List (sortOn)
 import Data.List.Utils (uniq)
 import Data.Maybe (fromMaybe)
 import Data.String.Conversions (cs)
@@ -73,6 +74,9 @@ open url = do
   _ <- system $ "open '" ++ cs url ++ "'"
   return ()
 
+sortItemsByTitle :: [Item] -> [Item]
+sortItemsByTitle = sortOn title
+
 main' :: [T.Text] -> IO ()
 main' args = do
   case head args of
@@ -136,7 +140,8 @@ main' args = do
           items' <-
             if null channels && null members && length keywords == 1
               then searchMessages token $ head keywords
-              else return $ members ++ channels -- Note: There are so many channels, so I'll prioritize members.
+              else return $
+                   sortItemsByTitle members ++ sortItemsByTitle channels -- Note: There are so many channels, so I'll prioritize members.
           let items'' =
                 if null items'
                   then [ Item
