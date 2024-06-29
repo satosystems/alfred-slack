@@ -138,8 +138,8 @@ main' args = do
           channels <- wait a1
           members <- wait a2
           items' <-
-            if null channels && null members && length keywords == 1
-              then searchMessages token $ head keywords
+            if null channels && null members
+              then searchMessages token $ T.intercalate " " keywords
               else return $
                    sortItemsByTitle members ++ sortItemsByTitle channels
                    -- Note: There are so many channels, so I'll prioritize members.
