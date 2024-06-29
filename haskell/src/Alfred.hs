@@ -141,7 +141,8 @@ main' args = do
             if null channels && null members && length keywords == 1
               then searchMessages token $ head keywords
               else return $
-                   sortItemsByTitle members ++ sortItemsByTitle channels -- Note: There are so many channels, so I'll prioritize members.
+                   sortItemsByTitle members ++ sortItemsByTitle channels
+                   -- Note: There are so many channels, so I'll prioritize members.
           let items'' =
                 if null items'
                   then [ Item
