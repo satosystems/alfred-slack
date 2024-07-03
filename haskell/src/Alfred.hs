@@ -10,7 +10,7 @@ import Control.Monad (void)
 import Data.Aeson (encode)
 import Data.List (sortOn)
 import Data.List.Utils (uniq)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromJust, fromMaybe, isJust)
 import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import Data.Time.Clock.System
@@ -151,12 +151,23 @@ main' args = do
           a2 <- async $ getMembers token keywords
           channels <- wait a1
           members <- wait a2
+          let (prefix, getter, fn) =
+                case ( "in:#" `T.isPrefixOf` lastKeyword
+                     , "from:@" `T.isPrefixOf` lastKeyword) of
+                  (True, _) -> ("in:#", Just getChannels, Just $ cs . title)
+                  (_, True) ->
+                    ( "from:@"
+                    , Just getMembers
+                    , Just $
+                      (cs . last . init . T.splitOn ")") .
+                      (last . T.splitOn "(") . subtitle)
+                  _ -> ("", Nothing, Nothing)
           candidateItems <-
-            if "in:#" `T.isPrefixOf` lastKeyword
+            if isJust fn
               then do
-                let partOfChannelName = T.drop (T.length "in:#") lastKeyword
-                a3 <- async $ getChannels token [partOfChannelName]
-                candidateChannels <- wait a3
+                let partOfItemName = T.drop (length prefix) lastKeyword
+                a3 <- async $ fromJust getter token [partOfItemName]
+                candidateItems <- wait a3
                 let searchText = T.intercalate " " $ "" : init keywords
                 return $
                   map
@@ -170,12 +181,12 @@ main' args = do
                                isUnreserved
                                ("/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss" ++
                                 cs searchText ++
-                                " in:#" ++ (cs . title) item ++ "\"'")
+                                " " ++ prefix ++ fromJust fn item ++ "\"'")
                          , icon = Just $ ImagePath "./alfred.png"
                          })
                     (filter
-                       (\item -> partOfChannelName /= title item)
-                       candidateChannels)
+                       (\item -> partOfItemName /= title item)
+                       candidateItems)
               else return []
           items' <-
             if null channels && null members
