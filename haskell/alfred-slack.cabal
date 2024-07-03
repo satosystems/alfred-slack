@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.1.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -50,6 +50,7 @@ library
     , http-conduit
     , lens
     , mtl
+    , network-uri
     , process
     , strict
     , string-conversions
@@ -81,6 +82,7 @@ executable alfred-slack
     , http-conduit
     , lens
     , mtl
+    , network-uri
     , process
     , strict
     , string-conversions

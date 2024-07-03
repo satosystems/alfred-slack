@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
 module Alfred
   ( main'
@@ -16,6 +17,7 @@ import Data.Time.Clock.System
   ( SystemTime(systemNanoseconds, systemSeconds)
   , getSystemTime
   )
+import Network.URI (escapeURIString, isUnreserved, unEscapeString)
 import System.Directory (doesFileExist)
 import System.Exit (exitFailure)
 import qualified System.IO.Strict as SIO
@@ -30,7 +32,8 @@ import Slack
   , searchMessages
   )
 import Types
-  ( Item(..)
+  ( ImagePath(..)
+  , Item(..)
   , SearchResult(SearchResult, items, skipknowledge, variables)
   , Variables(Variables, oldArgv, oldResults)
   )
@@ -71,12 +74,22 @@ sortUsedArgsFirst items' usedArgs =
 
 open :: T.Text -> IO ()
 open url = do
-  _ <- system $ "open '" ++ cs url ++ "'"
-  return ()
+  if "slack://" `T.isPrefixOf` url
+    then do
+      _ <- system $ "open '" ++ cs url ++ "'"
+      return ()
+    else do
+      let command =
+            unEscapeString $ cs $ T.drop (T.length "alfred-slack://") url
+      _ <- system command
+      return ()
 
 sortItemsByTitle :: [Item] -> [Item]
 sortItemsByTitle = sortOn title
 
+-- debug :: Show a => a -> IO ()
+-- debug = appendFile "./alfred-slack.log" . (++ "\n") . show
+--
 main' :: [T.Text] -> IO ()
 main' args = do
   case head args of
@@ -133,18 +146,46 @@ main' args = do
               }
         (Just token, _) -> do
           let keywords = tail args
+          let lastKeyword = last keywords
           a1 <- async $ getChannels token keywords
           a2 <- async $ getMembers token keywords
           channels <- wait a1
           members <- wait a2
+          candidateItems <-
+            if "in:#" `T.isPrefixOf` lastKeyword
+              then do
+                let partOfChannelName = T.drop (T.length "in:#") lastKeyword
+                a3 <- async $ getChannels token [partOfChannelName]
+                candidateChannels <- wait a3
+                let searchText = T.intercalate " " $ "" : init keywords
+                return $
+                  map
+                    (\item ->
+                       item
+                         { arg =
+                             Just $
+                             cs $
+                             "alfred-slack://" ++
+                             escapeURIString
+                               isUnreserved
+                               ("/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss" ++
+                                cs searchText ++
+                                " in:#" ++ (cs . title) item ++ "\"'")
+                         , icon = Just $ ImagePath "./alfred.png"
+                         })
+                    (filter
+                       (\item -> partOfChannelName /= title item)
+                       candidateChannels)
+              else return []
           items' <-
             if null channels && null members
               then searchMessages token $ T.intercalate " " keywords
               else return $
                    sortItemsByTitle members ++ sortItemsByTitle channels
                    -- Note: There are so many channels, so I'll prioritize members.
-          let items'' =
-                if null items'
+          let items'' = items' ++ candidateItems
+          let items''' =
+                if null items''
                   then [ Item
                            { uid = ""
                            , title = "NO MATCH."
@@ -153,9 +194,9 @@ main' args = do
                            , icon = Nothing
                            }
                        ]
-                  else items'
+                  else items''
           usedArgs <- loadUsedArgs
-          let sortedItems = sortUsedArgsFirst items'' usedArgs
+          let sortedItems = sortUsedArgsFirst items''' usedArgs
           putStrLn $
             cs $
             encode $

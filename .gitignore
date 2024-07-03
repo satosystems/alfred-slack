@@ -1,3 +1,5 @@
 /alfred/.cache/
 /alfred/alfred-slack
+/alfred/alfred-slack.app/Contents/MacOS/alfred-slack
+/alfred/alfred-slack.log
 /alfred/prefs.plist

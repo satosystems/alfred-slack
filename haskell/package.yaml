@@ -28,6 +28,7 @@ dependencies:
   - http-conduit
   - lens
   - mtl
+  - network-uri
   - process
   - strict
   - string-conversions
