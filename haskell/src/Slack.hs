@@ -35,6 +35,7 @@ import Network.HTTP.Simple
   , setRequestQueryString
   )
 import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
+import Text.Regex.TDFA ((=~))
 
 import SlackResponse
   ( Channel(Channel)
@@ -217,8 +218,19 @@ searchMessages token query = do
   where
     toItem :: Match -> Item
     toItem (Match iid team (MatchChannel id' isChannel isGroup isMpim name) username ts text permalink) =
-      Item iid text subtitle' arg' Nothing
+      Item iid (toReadable text) subtitle' arg' Nothing
       where
+        toReadable :: T.Text -> T.Text
+        toReadable input = go (T.replace "\n" " " input)
+          where
+            regex = "<@[^|]*\\|([^>]*)>" :: T.Text
+            go :: T.Text -> T.Text
+            go txt =
+              let result = txt =~ regex :: (T.Text, T.Text, T.Text, [T.Text])
+               in case result of
+                    (before', _, after', [capture]) ->
+                      before' <> capture <> go after'
+                    _ -> txt
         subtitle' :: T.Text
         subtitle' =
           case (isChannel || isGroup, isMpim) of

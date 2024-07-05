@@ -30,6 +30,7 @@ dependencies:
   - mtl
   - network-uri
   - process
+  - regex-tdfa
   - strict
   - string-conversions
   - text

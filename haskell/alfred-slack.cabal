@@ -52,6 +52,7 @@ library
     , mtl
     , network-uri
     , process
+    , regex-tdfa
     , strict
     , string-conversions
     , text
@@ -84,6 +85,7 @@ executable alfred-slack
     , mtl
     , network-uri
     , process
+    , regex-tdfa
     , strict
     , string-conversions
     , text
