@@ -8,7 +8,7 @@ module Alfred
 import Control.Concurrent.Async (async, wait)
 import Control.Monad (void)
 import Data.Aeson (encode)
-import Data.List (sortOn)
+import Data.List (find, sortOn)
 import Data.List.Utils (uniq)
 import Data.Maybe (fromJust, fromMaybe, isJust)
 import Data.String.Conversions (cs)
@@ -23,6 +23,7 @@ import System.Exit (exitFailure)
 import qualified System.IO.Strict as SIO
 import System.Process (system)
 
+import Debug (debug)
 import Slack
   ( cacheFile
   , clearChannelsCache
@@ -32,8 +33,8 @@ import Slack
   , searchMessages
   )
 import Types
-  ( ImagePath(..)
-  , Item(..)
+  ( ImagePath(ImagePath)
+  , Item(Item, arg, icon, subtitle, title, uid)
   , SearchResult(SearchResult, items, skipknowledge, variables)
   , Variables(Variables, oldArgv, oldResults)
   )
@@ -81,17 +82,16 @@ open url = do
     else do
       let command =
             unEscapeString $ cs $ T.drop (T.length "alfred-slack://") url
+      debug command
       _ <- system command
       return ()
 
 sortItemsByTitle :: [Item] -> [Item]
 sortItemsByTitle = sortOn title
 
--- debug :: Show a => a -> IO ()
--- debug = appendFile "./alfred-slack.log" . (++ "\n") . show
---
 main' :: [T.Text] -> IO ()
 main' args = do
+  debug args
   case head args of
     "open" ->
       let arg' = args !! 1
@@ -146,54 +146,93 @@ main' args = do
               }
         (Just token, _) -> do
           let keywords = tail args
-          let lastKeyword = last keywords
           a1 <- async $ getChannels token keywords
           a2 <- async $ getMembers token keywords
           channels <- wait a1
           members <- wait a2
-          let (prefix, getter, fn) =
-                case ( "in:#" `T.isPrefixOf` lastKeyword
-                     , "from:@" `T.isPrefixOf` lastKeyword) of
-                  (True, _) -> ("in:#", Just getChannels, Just $ cs . title)
-                  (_, True) ->
+          let (prefix, keywords', getter, fn) =
+                case ( filter ("in:#" `T.isPrefixOf`) keywords
+                     , filter ("from:@" `T.isPrefixOf`) keywords) of
+                  (v@(_:_), _) ->
+                    ("in:#", v, Just getChannels, Just $ cs . title)
+                  (_, v@(_:_)) ->
                     ( "from:@"
+                    , v
                     , Just getMembers
                     , Just $
                       (cs . last . init . T.splitOn ")") .
                       (last . T.splitOn "(") . subtitle)
-                  _ -> ("", Nothing, Nothing)
+                  _ -> ("", [], Nothing, Nothing)
           candidateItems <-
             if isJust fn
               then do
-                let partOfItemName = T.drop (length prefix) lastKeyword
-                a3 <- async $ fromJust getter token [partOfItemName]
+                let keywords'' = map (T.drop (length prefix)) keywords'
+                let partOfItemName =
+                      concatMap
+                        (map (T.replace " " "") . T.splitOn ",")
+                        keywords''
+                a3 <- async $ fromJust getter token partOfItemName
+                debug ("partOfItemName" :: String, partOfItemName)
                 candidateItems <- wait a3
                 let searchText = T.intercalate " " $ "" : init keywords
+                debug ("candidateItems" :: String, candidateItems)
+                -- debug $
+                --   map
+                --     (\item ->
+                --        item
+                --          { arg =
+                --              Just $
+                --              cs $
+                --              "alfred-slack://" ++
+                --              escapeURIString
+                --                isUnreserved
+                --                ("/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss" ++
+                --                 cs searchText ++
+                --                 " \\\"" ++
+                --                 prefix ++ fromJust fn item ++ "\\\"\"'")
+                --          , icon = Just $ ImagePath "./alfred.png"
+                --          })
+                --     (filter
+                --        (\item -> title item `notElem` partOfItemName)
+                --        candidateItems)
                 return $
                   map
                     (\item ->
                        item
                          { arg =
+                             if title item `elem` keywords''
+                               then arg item
+                               else Just $
+                                    cs $
+                                    "alfred-slack://" ++
+                                    escapeURIString
+                                      isUnreserved
+                                      ("/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss" ++
+                                       cs searchText ++
+                                      --  " channel=" ++
+                                      --  (cs . uid) item ++
+                                       " \\\"" ++
+                                       prefix ++ fromJust fn item ++ "\\\"\"'")
+                         , icon =
                              Just $
-                             cs $
-                             "alfred-slack://" ++
-                             escapeURIString
-                               isUnreserved
-                               ("/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss" ++
-                                cs searchText ++
-                                " " ++ prefix ++ fromJust fn item ++ "\"'")
-                         , icon = Just $ ImagePath "./alfred.png"
+                             ImagePath $
+                             if title item `elem` keywords''
+                               then "./slack.png"
+                               else "./alfred.png"
                          })
                     (filter
-                       (\item -> partOfItemName /= title item)
+                       (\item -> title item `notElem` partOfItemName)
                        candidateItems)
               else return []
+          debug ("channels" :: String, channels)
+          debug ("members" :: String, members)
           items' <-
             if null channels && null members
-              then searchMessages token $ T.intercalate " " keywords
+              then searchMessages token keywords candidateItems
               else return $
                    sortItemsByTitle members ++ sortItemsByTitle channels
                    -- Note: There are so many channels, so I'll prioritize members.
+          debug ("items'" :: String, items')
           let items'' = items' ++ candidateItems
           let items''' =
                 if null items''
