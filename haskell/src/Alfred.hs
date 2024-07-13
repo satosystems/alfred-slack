@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
+{-# LANGUAGE TupleSections #-}
 
 module Alfred
   ( main'
@@ -8,9 +9,9 @@ module Alfred
 import Control.Concurrent.Async (async, wait)
 import Control.Monad (void)
 import Data.Aeson (encode)
-import Data.List (find, sortOn)
+import Data.List (sortOn)
 import Data.List.Utils (uniq)
-import Data.Maybe (fromJust, fromMaybe, isJust)
+import Data.Maybe (fromJust, fromMaybe, isJust, isNothing)
 import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import Data.Time.Clock.System
@@ -37,6 +38,7 @@ import Types
   , Item(Item, arg, icon, subtitle, title, uid)
   , SearchResult(SearchResult, items, skipknowledge, variables)
   , Variables(Variables, oldArgv, oldResults)
+  , (+++)
   )
 import qualified XML
 
@@ -175,26 +177,6 @@ main' args = do
                 debug ("partOfItemName" :: String, partOfItemName)
                 candidateItems <- wait a3
                 let searchText = T.intercalate " " $ "" : init keywords
-                debug ("candidateItems" :: String, candidateItems)
-                -- debug $
-                --   map
-                --     (\item ->
-                --        item
-                --          { arg =
-                --              Just $
-                --              cs $
-                --              "alfred-slack://" ++
-                --              escapeURIString
-                --                isUnreserved
-                --                ("/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss" ++
-                --                 cs searchText ++
-                --                 " \\\"" ++
-                --                 prefix ++ fromJust fn item ++ "\\\"\"'")
-                --          , icon = Just $ ImagePath "./alfred.png"
-                --          })
-                --     (filter
-                --        (\item -> title item `notElem` partOfItemName)
-                --        candidateItems)
                 return $
                   map
                     (\item ->
@@ -209,8 +191,6 @@ main' args = do
                                       isUnreserved
                                       ("/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss" ++
                                        cs searchText ++
-                                      --  " channel=" ++
-                                      --  (cs . uid) item ++
                                        " \\\"" ++
                                        prefix ++ fromJust fn item ++ "\\\"\"'")
                          , icon =
@@ -224,18 +204,53 @@ main' args = do
                        (\item -> title item `notElem` partOfItemName)
                        candidateItems)
               else return []
+          mapM_
+            (\item ->
+               debug
+                 ("candidateItem" :: String, title item, uid item, icon item))
+            candidateItems
           debug ("channels" :: String, channels)
           debug ("members" :: String, members)
+          let matchedChannels =
+                filter
+                  (\item -> Just (ImagePath "./slack.png") == icon item)
+                  candidateItems
+          let mTargetChannel =
+                if (not . null) matchedChannels
+                  then (Just . uid . head) matchedChannels
+                  else Nothing
+          debug ("mTargetChannel" :: String, mTargetChannel)
+          let keywords''' =
+                case mTargetChannel of
+                  Nothing -> keywords
+                  Just _ ->
+                    filter
+                      (\keyword -> not $ "in:#" `T.isPrefixOf` keyword)
+                      keywords
+          debug ("keywords'''" :: String, keywords''')
           items' <-
             if null channels && null members
-              then searchMessages token keywords candidateItems
+              then searchMessages token $ T.intercalate " " keywords'''
               else return $
                    sortItemsByTitle members ++ sortItemsByTitle channels
                    -- Note: There are so many channels, so I'll prioritize members.
           debug ("items'" :: String, items')
           let items'' = items' ++ candidateItems
+          debug ("items''" :: String, items'')
           let items''' =
-                if null items''
+                filter
+                  (\item ->
+                     case mTargetChannel of
+                       Nothing -> True
+                       Just targetChannel ->
+                         "id=" +++
+                         targetChannel `T.isInfixOf` fromMaybe "" (arg item) &&
+                         isNothing (icon item))
+                  items''
+          debug ("---------------------" :: String)
+          mapM_ (debug . ("  items'''" :: String, )) items'''
+          let items'''' =
+                if null items'''
                   then [ Item
                            { uid = ""
                            , title = "NO MATCH."
@@ -244,9 +259,9 @@ main' args = do
                            , icon = Nothing
                            }
                        ]
-                  else items''
+                  else items'''
           usedArgs <- loadUsedArgs
-          let sortedItems = sortUsedArgsFirst items''' usedArgs
+          let sortedItems = sortUsedArgsFirst items'''' usedArgs
           putStrLn $
             cs $
             encode $

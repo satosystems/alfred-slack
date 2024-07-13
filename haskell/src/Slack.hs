@@ -16,7 +16,7 @@ import Control.Monad (unless, when)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.CaseInsensitive as CI
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromJust, fromMaybe, isJust)
 import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -37,6 +37,7 @@ import Network.HTTP.Simple
 import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import Text.Regex.TDFA ((=~))
 
+import Debug (debug)
 import SlackResponse
   ( Channel(Channel)
   , ListResponse(ListResponse)
@@ -209,6 +210,8 @@ searchMessages token query = do
           (cs apiPathMessages)
           [("count", "999999999999999999"), ("query", query)]
   res <- httpJSON req
+  debug ("req" :: String, req)
+  debug ("res" :: String, res)
   let ListResponse ok _ _ mMessages _ = getResponseBody res
   if ok
     then case mMessages of
