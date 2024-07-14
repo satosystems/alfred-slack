@@ -1,17 +1,17 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module SlackResponse
-  ( Purpose(..)
-  , Channel(..)
-  , Profile(..)
-  , Member(..)
-  , ResponseMetadata(..)
+  ( Channel(..)
   , ListResponse(..)
-  , Messages(..)
   , Match(..)
   , MatchChannel(..)
+  , Member(..)
+  , Messages(..)
   , Pagination(..)
   , Paging(..)
+  , Profile(..)
+  , Purpose(..)
+  , ResponseMetadata(..)
   ) where
 
 import Data.Aeson (Options(fieldLabelModifier), defaultOptions)
@@ -29,7 +29,9 @@ data Profile =
     }
   deriving (Read, Show)
 
-$(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Profile)
+$(deriveJSON
+    defaultOptions {fieldLabelModifier = snakeCase . drop (length "profile")}
+    ''Profile)
 
 data Member =
   Member
@@ -42,7 +44,9 @@ data Member =
     }
   deriving (Read, Show)
 
-$(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 6} ''Member)
+$(deriveJSON
+    defaultOptions {fieldLabelModifier = snakeCase . drop (length "member")}
+    ''Member)
 
 newtype Purpose =
   Purpose
@@ -50,7 +54,9 @@ newtype Purpose =
     }
   deriving (Read, Show)
 
-$(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Purpose)
+$(deriveJSON
+    defaultOptions {fieldLabelModifier = snakeCase . drop (length "purpose")}
+    ''Purpose)
 
 newtype ResponseMetadata =
   ResponseMetadata
@@ -59,7 +65,8 @@ newtype ResponseMetadata =
   deriving (Read, Show)
 
 $(deriveJSON
-    defaultOptions {fieldLabelModifier = snakeCase . drop 16}
+    defaultOptions
+      {fieldLabelModifier = snakeCase . drop (length "responseMetadata")}
     ''ResponseMetadata)
 
 data Channel =
@@ -72,7 +79,9 @@ data Channel =
     }
   deriving (Read, Show)
 
-$(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 7} ''Channel)
+$(deriveJSON
+    defaultOptions {fieldLabelModifier = snakeCase . drop (length "channel")}
+    ''Channel)
 
 data MatchChannel =
   MatchChannel
@@ -85,7 +94,8 @@ data MatchChannel =
   deriving (Read, Show)
 
 $(deriveJSON
-    defaultOptions {fieldLabelModifier = snakeCase . drop 12}
+    defaultOptions
+      {fieldLabelModifier = snakeCase . drop (length "matchChannel")}
     ''MatchChannel)
 
 data Match =
@@ -100,7 +110,9 @@ data Match =
     }
   deriving (Read, Show)
 
-$(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 5} ''Match)
+$(deriveJSON
+    defaultOptions {fieldLabelModifier = snakeCase . drop (length "match")}
+    ''Match)
 
 data Pagination =
   Pagination
@@ -113,7 +125,7 @@ data Pagination =
   deriving (Read, Show)
 
 $(deriveJSON
-    defaultOptions {fieldLabelModifier = snakeCase . drop 10}
+    defaultOptions {fieldLabelModifier = snakeCase . drop (length "pagination")}
     ''Pagination)
 
 data Paging =
@@ -124,7 +136,9 @@ data Paging =
     }
   deriving (Read, Show)
 
-$(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 6} ''Paging)
+$(deriveJSON
+    defaultOptions {fieldLabelModifier = snakeCase . drop (length "paging")}
+    ''Paging)
 
 data Messages =
   Messages
@@ -135,7 +149,9 @@ data Messages =
     }
   deriving (Read, Show)
 
-$(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 8} ''Messages)
+$(deriveJSON
+    defaultOptions {fieldLabelModifier = snakeCase . drop (length "messages")}
+    ''Messages)
 
 data ListResponse =
   ListResponse
@@ -148,5 +164,6 @@ data ListResponse =
   deriving (Read, Show)
 
 $(deriveJSON
-    defaultOptions {fieldLabelModifier = snakeCase . drop 12}
+    defaultOptions
+      {fieldLabelModifier = snakeCase . drop (length "listResponse")}
     ''ListResponse)
