@@ -8,6 +8,7 @@ module Alfred
 import Control.Concurrent.Async (async, wait)
 import Control.Monad (void)
 import Data.Aeson (encode)
+import Data.Functor ((<&>))
 import Data.List (sortOn)
 import Data.List.Utils (uniq)
 import Data.Maybe (fromJust, fromMaybe, isJust)
@@ -187,7 +188,7 @@ main' args = do
               else return []
           items' <-
             if null channels && null members
-              then searchMessages token $ T.intercalate " " keywords
+              then searchMessages token "*" (T.intercalate " " keywords) <&> snd
               else return $
                    sortItemsByTitle members ++ sortItemsByTitle channels
                    -- Note: There are so many channels, so I'll prioritize members.

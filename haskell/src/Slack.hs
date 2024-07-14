@@ -44,6 +44,7 @@ import SlackResponse
   , MatchChannel(MatchChannel)
   , Member(Member, memberProfile)
   , Messages(Messages)
+  , Paging(Paging)
   , Profile(Profile, profileImage_48)
   , Purpose(Purpose)
   , ResponseMetadata(ResponseMetadata, responseMetadataNextCursor)
@@ -101,7 +102,7 @@ getChannelsOrMembers token path' = do
               "GET"
               [("Authorization", "Bearer " +++ token)]
               (cs path') $
-            [("limit", "99999"), ("exclude_archived", "true")] ++
+            [("limit", "100"), ("exclude_archived", "true")] ++
             [("cursor", cursor) | (not . T.null) cursor] ++
             [ ("types", "public_channel,private_channel,mpim")
             | path' == apiPathChannels
@@ -200,21 +201,23 @@ getMembers token keywords = do
   null keywords `when` downloadImage members
   return $ foldl (foldToItemFromMember keywords) [] members
 
-searchMessages :: Token -> T.Text -> IO [Item]
-searchMessages token query = do
+searchMessages :: Token -> Cursor -> T.Text -> IO (Cursor, [Item])
+searchMessages token cursor query = do
   let req =
         makeRequest
           "GET"
           [("Authorization", "Bearer " +++ token)]
           (cs apiPathMessages)
-          [("count", "999999999999999999"), ("query", query)]
+          ([("count", "100"), ("query", query)] ++
+           [("cursor", cursor) | (not . T.null) cursor])
   res <- httpJSON req
   let ListResponse ok _ _ mMessages _ = getResponseBody res
   if ok
     then case mMessages of
-           Nothing -> return []
-           Just (Messages matches) -> return $ map toItem matches
-    else return []
+           Nothing -> return ("", [])
+           Just (Messages matches _ (Paging _ _ nextCursor) _) ->
+             return (nextCursor, map toItem matches)
+    else return ("", [])
   where
     toItem :: Match -> Item
     toItem (Match iid team (MatchChannel id' isChannel isGroup isMpim name) username ts text permalink) =
