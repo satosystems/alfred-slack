@@ -87,9 +87,6 @@ open url = do
 sortItemsByTitle :: [Item] -> [Item]
 sortItemsByTitle = sortOn title
 
--- debug :: Show a => a -> IO ()
--- debug = appendFile "./alfred-slack.log" . (++ "\n") . show
---
 main' :: [T.Text] -> IO ()
 main' args = do
   case head args of
