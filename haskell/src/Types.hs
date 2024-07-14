@@ -10,6 +10,7 @@ module Types
   , URL
   , Item(..)
   , ImagePath(..)
+  , Kind(..)
   , SearchResult(..)
   , Variables(..)
   ) where
@@ -45,11 +46,24 @@ newtype ImagePath =
 
 $(deriveJSON defaultOptions ''ImagePath)
 
+data Kind
+  = KindOops
+  | KindCommandResult
+  | KindNoMatch
+  | KindMessage
+  | KindChannel
+  | KindGroupMessage
+  | KindMember
+  deriving (Eq, Show)
+
+$(deriveJSON defaultOptions ''Kind)
+
 data Item =
   Item
     { uid :: T.Text
     , title :: T.Text
     , subtitle :: T.Text
+    , kind :: Kind
     , arg :: Maybe T.Text
     , icon :: Maybe ImagePath
     }

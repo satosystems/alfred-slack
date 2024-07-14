@@ -16,7 +16,7 @@ import Control.Monad (unless, when)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.CaseInsensitive as CI
-import Data.Maybe (fromJust, fromMaybe, isJust)
+import Data.Maybe (fromMaybe)
 import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -45,11 +45,21 @@ import SlackResponse
   , MatchChannel(MatchChannel)
   , Member(Member, memberProfile)
   , Messages(Messages)
+  , Paging(Paging)
   , Profile(Profile, profileImage_48)
   , Purpose(Purpose)
   , ResponseMetadata(ResponseMetadata, responseMetadataNextCursor)
   )
-import Types (Cursor, ImagePath(ImagePath), Item(Item), Path, Token, URL, (+++))
+import Types
+  ( Cursor
+  , ImagePath(ImagePath)
+  , Item(Item)
+  , Kind(KindChannel, KindGroupMessage, KindMember, KindMessage)
+  , Path
+  , Token
+  , URL
+  , (+++)
+  )
 
 apiPathChannels :: Path
 apiPathChannels = "api/conversations.list"
@@ -102,7 +112,7 @@ getChannelsOrMembers token path' = do
               "GET"
               [("Authorization", "Bearer " +++ token)]
               (cs path') $
-            [("limit", "99999"), ("exclude_archived", "true")] ++
+            [("limit", "100"), ("exclude_archived", "true")] ++
             [("cursor", cursor) | (not . T.null) cursor] ++
             [ ("types", "public_channel,private_channel,mpim")
             | path' == apiPathChannels
@@ -127,9 +137,12 @@ infixOfIgnoreCase needle haystack =
       haystack' = T.toLower haystack
    in needle' `T.isInfixOf` haystack'
 
+isGroupMessage :: T.Text -> Bool
+isGroupMessage name = "mpdm-" `T.isPrefixOf` name && "-1" `T.isSuffixOf` name
+
 formatPrettyMpdmIfNeeded :: T.Text -> T.Text
 formatPrettyMpdmIfNeeded name
-  | "mpdm-" `T.isPrefixOf` name && "-1" `T.isSuffixOf` name =
+  | isGroupMessage name =
     T.intercalate ", " $ T.splitOn "--" $ (T.init . T.init . T.drop 5) name
   | otherwise = name
 
@@ -140,8 +153,15 @@ foldToItemFromChannel [] acc (Channel id' name _ teamId (Purpose value)) =
     id'
     (formatPrettyMpdmIfNeeded name)
     value
-    (Just ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
-    Nothing :
+    (if isGroupMessage name
+       then KindGroupMessage
+       else KindChannel)
+    (Just $ "'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
+    (Just $
+     ImagePath
+       (if isGroupMessage name
+          then "./slack-group-message.png"
+          else "./slack-channel.png")) :
   acc
 foldToItemFromChannel keywords acc (Channel id' name _ teamId (Purpose value))
   | all (`infixOfIgnoreCase` name) keywords =
@@ -149,8 +169,15 @@ foldToItemFromChannel keywords acc (Channel id' name _ teamId (Purpose value))
       id'
       (formatPrettyMpdmIfNeeded name)
       value
-      (Just ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
-      Nothing :
+      (if isGroupMessage name
+         then KindGroupMessage
+         else KindChannel)
+      (Just $ "'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
+      (Just $
+       ImagePath
+         (if isGroupMessage name
+            then "./slack-group-message.png"
+            else "./slack-channel.png")) :
     acc
   | otherwise = acc
 
@@ -173,7 +200,8 @@ foldToItemFromMember [] acc (Member id' teamId name _ (Profile realName displayN
     id'
     displayName
     (realName +++ " (" +++ name +++ ")")
-    (Just ("'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
+    KindMember
+    (Just $ "'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
     (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
   acc
 foldToItemFromMember keywords acc (Member id' teamId name _ (Profile realName displayName image) _)
@@ -185,7 +213,8 @@ foldToItemFromMember keywords acc (Member id' teamId name _ (Profile realName di
       id'
       displayName
       (realName +++ " (" +++ name +++ ")")
-      (Just ("'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
+      KindMember
+      (Just $ "'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'")
       (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
     acc
   | otherwise = acc
@@ -202,37 +231,49 @@ getMembers token keywords = do
   return $ foldl (foldToItemFromMember keywords) [] members
 
 searchMessages :: Token -> T.Text -> IO [Item]
-searchMessages token query = do
-  let req =
-        makeRequest
-          "GET"
-          [("Authorization", "Bearer " +++ token)]
-          (cs apiPathMessages)
-          [("count", "999999999999999999"), ("query", query)]
-  res <- httpJSON req
-  debug ("req" :: String, req)
-  debug ("res" :: String, res)
-  let ListResponse ok _ _ mMessages _ = getResponseBody res
-  if ok
-    then case mMessages of
-           Nothing -> return []
-           Just (Messages matches) -> return $ map toItem matches
-    else return []
+searchMessages token query = go [] "*"
   where
+    go :: [Item] -> Cursor -> IO [Item]
+    go acc cursor = do
+      let req =
+            makeRequest
+              "GET"
+              [("Authorization", "Bearer " +++ token)]
+              (cs apiPathMessages)
+              ([("count", "100"), ("query", query)] ++
+               [("cursor", cursor) | (not . T.null) cursor])
+      res <- httpJSON req
+      debug ("req" :: String, req)
+      debug ("res" :: String, res)
+      let ListResponse ok _ _ mMessages _ = getResponseBody res
+      if ok
+        then case mMessages of
+               Nothing -> return []
+               Just (Messages matches _ (Paging _ _ nextCursor) _) ->
+                 case nextCursor of
+                   "" -> return $ acc ++ map toItem matches
+                   _ -> go (acc ++ map toItem matches) nextCursor
+        else return acc
     toItem :: Match -> Item
     toItem (Match iid team (MatchChannel id' isChannel isGroup isMpim name) username ts text permalink) =
-      Item iid (toReadable text) subtitle' arg' Nothing
+      Item
+        iid
+        (toReadable text)
+        subtitle'
+        KindMessage
+        arg'
+        (Just $ ImagePath "./slack-message.png")
       where
         toReadable :: T.Text -> T.Text
-        toReadable input = go (T.replace "\n" " " input)
+        toReadable input = go2 (T.replace "\n" " " input)
           where
             regex = "<@[^|]*\\|([^>]*)>" :: T.Text
-            go :: T.Text -> T.Text
-            go txt =
+            go2 :: T.Text -> T.Text
+            go2 txt =
               let result = txt =~ regex :: (T.Text, T.Text, T.Text, [T.Text])
                in case result of
                     (before', _, after', [capture]) ->
-                      before' <> capture <> go after'
+                      before' <> capture <> go2 after'
                     _ -> txt
         subtitle' :: T.Text
         subtitle' =

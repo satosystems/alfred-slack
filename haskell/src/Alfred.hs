@@ -1,15 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unused-do-bind #-}
 {-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
+{-# HLINT ignore "Avoid lambda" #-}
 module Alfred
   ( main'
   ) where
 
 import Control.Concurrent.Async (async, wait)
-import Control.Monad (void)
+import Control.Monad (void, when)
 import Data.Aeson (encode)
-import Data.List (sortOn)
+import Data.List (find, sortOn)
 import Data.List.Utils (uniq)
 import Data.Maybe (fromJust, fromMaybe, isJust, isNothing)
 import Data.String.Conversions (cs)
@@ -35,8 +38,11 @@ import Slack
   )
 import Types
   ( ImagePath(ImagePath)
-  , Item(Item, arg, icon, subtitle, title, uid)
+  , Item(Item, arg, icon, kind, subtitle, title, uid)
+  , Kind(KindChannel, KindCommandResult, KindGroupMessage, KindMember,
+     KindMessage, KindNoMatch, KindOops)
   , SearchResult(SearchResult, items, skipknowledge, variables)
+  , Token
   , Variables(Variables, oldArgv, oldResults)
   , (+++)
   )
@@ -108,6 +114,7 @@ main' args = do
                 { uid = ""
                 , title = "Oops!"
                 , subtitle = "Please set User OAuth Token to config."
+                , kind = KindOops
                 , arg = Nothing
                 , icon = Nothing
                 }
@@ -141,6 +148,7 @@ main' args = do
                           cs $
                           show seconds' ++
                           "." ++ take 2 (show nanoseconds') ++ " sec"
+                      , kind = KindCommandResult
                       , arg = Nothing
                       , icon = Nothing
                       }
@@ -152,116 +160,269 @@ main' args = do
           a2 <- async $ getMembers token keywords
           channels <- wait a1
           members <- wait a2
-          let (prefix, keywords', getter, fn) =
-                case ( filter ("in:#" `T.isPrefixOf`) keywords
-                     , filter ("from:@" `T.isPrefixOf`) keywords) of
-                  (v@(_:_), _) ->
-                    ("in:#", v, Just getChannels, Just $ cs . title)
-                  (_, v@(_:_)) ->
-                    ( "from:@"
-                    , v
+          let specialSearchTuples ::
+                   [( T.Text
+                    , T.Text -> ( T.Text
+                                , T.Text
+                                , Maybe (Token -> [T.Text] -> IO [Item])
+                                , Maybe (Item -> String)))]
+              specialSearchTuples =
+                [ ("in:#", ("in:#", , Just getChannels, Just $ cs . title))
+                , ( "from:@"
+                  , ( "from:@"
+                    ,
                     , Just getMembers
-                    , Just $
-                      (cs . last . init . T.splitOn ")") .
-                      (last . T.splitOn "(") . subtitle)
-                  _ -> ("", [], Nothing, Nothing)
-          candidateItems <-
-            if isJust fn
-              then do
-                let keywords'' = map (T.drop (length prefix)) keywords'
-                let partOfItemName =
-                      concatMap
-                        (map (T.replace " " "") . T.splitOn ",")
-                        keywords''
-                a3 <- async $ fromJust getter token partOfItemName
-                debug ("partOfItemName" :: String, partOfItemName)
-                candidateItems <- wait a3
-                let searchText = T.intercalate " " $ "" : init keywords
-                return $
-                  map
-                    (\item ->
-                       item
-                         { arg =
-                             if title item `elem` keywords''
-                               then arg item
-                               else Just $
-                                    cs $
-                                    "alfred-slack://" ++
-                                    escapeURIString
-                                      isUnreserved
-                                      ("/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss" ++
-                                       cs searchText ++
-                                       " \\\"" ++
-                                       prefix ++ fromJust fn item ++ "\\\"\"'")
-                         , icon =
-                             Just $
-                             ImagePath $
-                             if title item `elem` keywords''
-                               then "./slack.png"
-                               else "./alfred.png"
-                         })
-                    (filter
-                       (\item -> title item `notElem` partOfItemName)
-                       candidateItems)
-              else return []
-          mapM_
-            (\item ->
-               debug
-                 ("candidateItem" :: String, title item, uid item, icon item))
-            candidateItems
-          debug ("channels" :: String, channels)
-          debug ("members" :: String, members)
-          let matchedChannels =
-                filter
-                  (\item -> Just (ImagePath "./slack.png") == icon item)
-                  candidateItems
+                    , Just $ (cs . last . init . T.splitOn ")") .
+                      (last . T.splitOn "(") .
+                      subtitle))
+                ]
+          let specialSearchList ::
+                   [( T.Text
+                    , T.Text
+                    , Maybe (Token -> [T.Text] -> IO [Item])
+                    , Maybe (Item -> String))]
+              specialSearchList =
+                foldl
+                  (\acc (f, s) ->
+                     let v@(_, _, t, _) =
+                           maybe
+                             ("", "", Nothing, Nothing)
+                             s
+                             (find (f `T.isPrefixOf`) keywords)
+                      in if isNothing t
+                           then acc
+                           else v : acc)
+                  []
+                  specialSearchTuples
+          -- let (prefix, specialKeyword, getter, fn) =
+          --       case ( find (\keyword -> "in:#" `T.isPrefixOf` keyword) keywords
+          --            , find ("from:@" `T.isPrefixOf`) keywords) of
+          --         (Just v, _) ->
+          --           ("in:#", v, Just getChannels, Just $ cs . title)
+          --         (_, Just v) ->
+          --           ( "from:@"
+          --           , v
+          --           , Just getMembers
+          --           , Just $
+          --             (cs . last . init . T.splitOn ")") .
+          --             (last . T.splitOn "(") . subtitle)
+          --         _ -> ("", "", Nothing, Nothing)
+          -- 特別な検索結果がここに格納される。
+          -- head には in:# の検索結果が、last には from:@ の検索結果が格納される。
+          specialSearchItems <-
+            mapM
+              (\(prefix, specialKeyword, getter, fn) -> do
+                 if isJust fn
+                   then do
+                     let specialKeywords =
+                           T.drop (T.length prefix) specialKeyword
+                     let partOfItemName =
+                           map (T.replace " " "") $
+                           T.splitOn "," specialKeywords
+                     a3 <- async $ fromJust getter token partOfItemName
+                     specialSearchItems <- wait a3
+                     let searchText = T.intercalate " " $ "" : init keywords
+                     return $
+                       map
+                         (\item ->
+                            item
+                              { arg =
+                                  if title item == specialKeywords
+                                    then arg item
+                                    else Just $
+                                         cs $
+                                         "alfred-slack://" ++
+                                         escapeURIString
+                                           isUnreserved
+                                           ("/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss" ++
+                                            cs searchText ++
+                                            " \\\"" ++
+                                            cs prefix ++
+                                            fromJust fn item ++ "\\\"\"'")
+                              , icon =
+                                  Just $
+                                  ImagePath $
+                                  if title item == specialKeywords
+                                    then "./slack.png"
+                                    else "./alfred.png"
+                              })
+                         (filter
+                            (\item -> title item `notElem` partOfItemName)
+                            specialSearchItems)
+                   else return [])
+              specialSearchList
+          debug ("specialSearchItems" :: String, specialSearchItems)
+          debug ("----------" :: String)
+          let complementItems =
+                foldl
+                  (\acc item ->
+                     let isPrefixAlfredSlack =
+                           "alfred-slack://" `T.isPrefixOf`
+                           fromMaybe "" (arg item)
+                         isGroupMessaging =
+                           "Group messaging with:" `T.isPrefixOf` subtitle item
+                         isNotGroupMessaging = not isGroupMessaging
+                         (prefix0, fn0) = head specialSearchTuples
+                         (prefix1, fn1) = last specialSearchTuples
+                         (_, _, _, Just fn0') = fn0 ""
+                         (_, _, _, Just fn1') = fn1 ""
+                         lastKeyword = last keywords
+                         isPrefixIn = "in:#" `T.isPrefixOf` lastKeyword
+                         isPrefixFrom = "from:@" `T.isPrefixOf` lastKeyword
+                         isEnoughtLength0 =
+                           T.length lastKeyword > T.length prefix0
+                         isEnoughtLength1 =
+                           T.length lastKeyword > T.length prefix1
+                         title' = (cs . fn0') item
+                         subtitle' = (cs . fn1') item
+                         droppedKeyword0 = T.drop (T.length prefix0) lastKeyword
+                         droppedKeyword1 = T.drop (T.length prefix1) lastKeyword
+                         isPartOfChannelName =
+                           droppedKeyword1 `T.isPrefixOf` title'
+                         isPartOfUserName =
+                           droppedKeyword1 `T.isPrefixOf` subtitle'
+                         isEqualChannelName = droppedKeyword0 == title'
+                         isEqualUserName = droppedKeyword1 == subtitle'
+                      in case ( isPrefixAlfredSlack &&
+                                isGroupMessaging &&
+                                isPrefixIn &&
+                                isEnoughtLength0 && isPartOfChannelName
+                              , isPrefixAlfredSlack &&
+                                isNotGroupMessaging &&
+                                isPrefixFrom &&
+                                isEnoughtLength1 && isPartOfUserName) of
+                           (True, _) -> (isEqualChannelName, item) : acc
+                           (_, True) -> (isEqualUserName, item) : acc
+                           _ -> (False, item) : acc)
+                  [] $
+                concat specialSearchItems
+          debug ("complementItems" :: String, complementItems)
+          debug ("----------" :: String)
+          -- let candidateItems' =
+          --       case lookup True complementItems of
+          --         Nothing -> map snd complementItems
+          --         _ -> concat specialSearchItems
+          -- let matchedChannels =
+          --       filter
+          --         (\item -> title item `elem` any (\keyword -> if "in:#" `T.isPrefixOf` keyword && ) keywords)
+          --         candidateItems'
           let mTargetChannel =
-                if (not . null) matchedChannels
-                  then (Just . uid . head) matchedChannels
-                  else Nothing
+                let filteredKeywords = filter ("in:#" `T.isPrefixOf`) keywords
+                    matchedChannels =
+                      filter
+                        (\item ->
+                           not (null filteredKeywords) &&
+                           (T.drop (T.length "in:#") (head filteredKeywords) ==
+                            title item)) $
+                      map snd complementItems
+                 in if (not . null) matchedChannels
+                      then (Just . uid . head) matchedChannels
+                      else Nothing
           debug ("mTargetChannel" :: String, mTargetChannel)
-          let keywords''' =
+          let excludedSpecialKeywords =
                 case mTargetChannel of
-                  Nothing -> keywords
+                  Nothing ->
+                    filter
+                      (\keyword -> not $ "from:@" `T.isPrefixOf` keyword)
+                      keywords
                   Just _ ->
                     filter
                       (\keyword -> not $ "in:#" `T.isPrefixOf` keyword)
                       keywords
-          debug ("keywords'''" :: String, keywords''')
+          debug ("excludedSpecialKeywords" :: String, excludedSpecialKeywords)
+          debug
+            ( "--- condition ---" :: String
+            , ( any (`T.isPrefixOf` last keywords) ["in:#", "from:@"]
+              , lookup True complementItems
+              , (mTargetChannel, (not . null) excludedSpecialKeywords)
+              , (not . null) channels || (not . null) members))
           items' <-
-            if null channels && null members
-              then searchMessages token $ T.intercalate " " keywords'''
-              else return $
-                   sortItemsByTitle members ++ sortItemsByTitle channels
-                   -- Note: There are so many channels, so I'll prioritize members.
-          debug ("items'" :: String, items')
-          let items'' = items' ++ candidateItems
-          debug ("items''" :: String, items'')
-          let items''' =
-                filter
-                  (\item ->
-                     case mTargetChannel of
-                       Nothing -> True
-                       Just targetChannel ->
-                         "id=" +++
-                         targetChannel `T.isInfixOf` fromMaybe "" (arg item) &&
-                         isNothing (icon item))
-                  items''
-          debug ("---------------------" :: String)
-          mapM_ (debug . ("  items'''" :: String, )) items'''
-          let items'''' =
-                if null items'''
+            case ( any (`T.isPrefixOf` last keywords) ["in:#", "from:@"]
+                 , lookup True complementItems
+                 , (mTargetChannel, (not . null) excludedSpecialKeywords)
+                 , (not . null) channels || (not . null) members) of
+              (True, Nothing, _, _)
+               -- 特殊検索でかつ特殊検索が完了状態ではない場合は、特殊検索の補完を行う
+               -> do
+                debug ("---- 01" :: String)
+                return $
+                  filter
+                    (\item ->
+                       if "from:@" `T.isPrefixOf` last keywords
+                         then kind item == KindMember
+                         else kind item `elem` [KindChannel, KindGroupMessage]) $
+                  map snd complementItems
+              (True, Just _, (_, False), _)
+               -- 特殊検索でかつ特殊検索が完了状態の場合、かつ検索キーワードが未入力の場合は検索結果なしにする
+               -> do
+                debug ("---- 02" :: String)
+                return
+                  [ Item
+                      { uid = ""
+                      , title = "NO MATCH."
+                      , subtitle = "Please change keyword."
+                      , kind = KindNoMatch
+                      , arg = Nothing
+                      , icon = Nothing
+                      }
+                  ]
+              (_, _, (Just targetChannel, True), _)
+               -- 検索キーワードが入力されていれば検索を行い、フィルタする
+               -> do
+                debug ("---- 03" :: String)
+                items' <-
+                  searchMessages token $
+                  T.intercalate " " excludedSpecialKeywords
+                return $
+                  filter
+                    (\item ->
+                       "id=" +++
+                       targetChannel `T.isInfixOf` fromMaybe "" (arg item) &&
+                       KindMessage == kind item)
+                    items'
+              (_, _, (Nothing, True), _)
+               -- 検索キーワードが入力されていれば検索を行う
+               -> do
+                debug ("---- 04" :: String)
+                searchMessages token $ T.intercalate " " excludedSpecialKeywords
+              (_, _, _, True)
+                -- メンバーかチャンネルが取得できていれば、それらを結合して返す（チャンネルは数が多いのでメンバーを優先）
+               -> do
+                debug ("---- 05" :: String)
+                return $ sortItemsByTitle members ++ sortItemsByTitle channels
+              _
+                -- それ以外の場合は検索結果を返す
+               -> do
+                debug ("---- 06" :: String)
+                searchMessages token $ T.intercalate " " excludedSpecialKeywords
+          debug ("@@@@@@ mTargetChannel" :: String, mTargetChannel)
+          debug ("$$$$$$ items'" :: String, items')
+          -- チャンネルが特定されている場合は、検索結果をそのチャンネルにのみ絞り込む
+          -- let items'' =
+          --       filter
+          --         (\item ->
+          --            case mTargetChannel of
+          --              Nothing -> True
+          --              Just targetChannel ->
+          --                "id=" +++
+          --                targetChannel `T.isInfixOf` fromMaybe "" (arg item) &&
+          --                KindMessage == kind item)
+          --         items'
+          debug ("###### items'" :: String, mTargetChannel, items')
+          let items'' =
+                if null items'
                   then [ Item
                            { uid = ""
                            , title = "NO MATCH."
                            , subtitle = "Please change keyword."
+                           , kind = KindNoMatch
                            , arg = Nothing
                            , icon = Nothing
                            }
                        ]
-                  else items'''
+                  else items'
           usedArgs <- loadUsedArgs
-          let sortedItems = sortUsedArgsFirst items'''' usedArgs
+          let sortedItems = sortUsedArgsFirst items'' usedArgs
           putStrLn $
             cs $
             encode $

@@ -10,6 +10,8 @@ module SlackResponse
   , Messages(..)
   , Match(..)
   , MatchChannel(..)
+  , Pagination(..)
+  , Paging(..)
   ) where
 
 import Data.Aeson (Options(fieldLabelModifier), defaultOptions)
@@ -100,9 +102,36 @@ data Match =
 
 $(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 5} ''Match)
 
-newtype Messages =
+data Pagination =
+  Pagination
+    { paginationTotalCount :: Int
+    , paginationPerPage :: Int
+    , paginationNextCursor :: T.Text
+    , paginationFirst :: Int
+    , paginationLast :: Int
+    }
+  deriving (Read, Show)
+
+$(deriveJSON
+    defaultOptions {fieldLabelModifier = snakeCase . drop 10}
+    ''Pagination)
+
+data Paging =
+  Paging
+    { pagingCount :: Int
+    , pagingTotal :: Int
+    , pagingNextCursor :: T.Text
+    }
+  deriving (Read, Show)
+
+$(deriveJSON defaultOptions {fieldLabelModifier = snakeCase . drop 6} ''Paging)
+
+data Messages =
   Messages
     { messagesMatches :: [Match]
+    , messagesPagination :: Pagination
+    , messagesPaging :: Paging
+    , messagesTotal :: Int
     }
   deriving (Read, Show)
 
@@ -114,7 +143,7 @@ data ListResponse =
     , listResponseChannels :: Maybe [Channel]
     , listResponseMembers :: Maybe [Member]
     , listResponseMessages :: Maybe Messages
-    , listResponseResponseMetadata :: Maybe ResponseMetadata -- FIXME
+    , listResponseResponseMetadata :: Maybe ResponseMetadata
     }
   deriving (Read, Show)
 
