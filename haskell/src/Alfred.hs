@@ -18,7 +18,19 @@ import Data.Time.Clock.System
   ( SystemTime(systemNanoseconds, systemSeconds)
   , getSystemTime
   )
-import Network.URI (escapeURIString, isUnreserved, unEscapeString)
+import Network.URI
+  ( URIAuth(..)
+  , escapeURIString
+  , isUnreserved
+  , parseURI
+  , unEscapeString
+  , uriAuthority
+  , uriFragment
+  , uriPath
+  , uriQuery
+  , uriRegName
+  , uriScheme
+  )
 import System.Directory (doesFileExist)
 import System.Exit (exitFailure)
 import qualified System.IO.Strict as SIO
@@ -33,7 +45,8 @@ import Slack
   , searchMessages
   )
 import Types
-  ( ImagePath(..)
+  ( Cursor
+  , ImagePath(..)
   , Item(..)
   , SearchResult(SearchResult, items, skipknowledge, variables)
   , Variables(Variables, oldArgv, oldResults)
@@ -73,20 +86,84 @@ sortUsedArgsFirst items' usedArgs =
         Nothing -> go hit base xs
         Just item -> go (item : hit) base xs
 
+test :: IO ()
+test = do
+  let uriString = "http://user:password@www.example.com:80/path?query#fragment"
+  case parseURI uriString of
+    Nothing -> putStrLn "Invalid URI"
+    Just uri -> do
+      putStrLn $ "Scheme: " ++ uriScheme uri
+      putStrLn $ "Authority: " ++ show (uriAuthority uri)
+      putStrLn $ "Path: " ++ uriPath uri
+      putStrLn $ "Query: " ++ uriQuery uri
+      putStrLn $ "Fragment: " ++ uriFragment uri
+      case uriAuthority uri of
+        Nothing -> putStrLn "No authority component"
+        Just auth -> do
+          putStrLn $ "Userinfo: " ++ uriUserInfo auth
+          putStrLn $ "Host: " ++ uriRegName auth
+          putStrLn $ "Port: " ++ uriPort auth
+
+parseUrl :: T.Text -> (T.Text, T.Text, [(T.Text, T.Text)])
+parseUrl url =
+  let uri = (fromJust . parseURI . cs) url
+   in ( (cs . uriScheme) uri
+      , (cs . uriRegName . fromJust . uriAuthority) uri
+      , (parseQuery . uriQuery) uri)
+  where
+    parseQuery :: String -> [(T.Text, T.Text)]
+    parseQuery query =
+      let cleanQuery = T.dropWhile (== '?') $ cs query
+          keyValues = T.splitOn "&" cleanQuery
+       in map parseKeyValue keyValues
+    parseKeyValue :: T.Text -> (T.Text, T.Text)
+    parseKeyValue kv =
+      let (key, value) = T.breakOn "=" kv
+       in (key, (cs . unEscapeString . cs . T.drop 1) value)
+
 open :: T.Text -> IO ()
 open url = do
-  if "slack://" `T.isPrefixOf` url
-    then do
+  case parseUrl url of
+    ("slack:", _, _) -> do
       _ <- system $ "open '" ++ cs url ++ "'"
       return ()
-    else do
-      let command =
-            unEscapeString $ cs $ T.drop (T.length "alfred-slack://") url
+    ("alfred-slack:", "command", query) -> do
+      let command = (cs . fromJust . lookup "q") query
       _ <- system command
+      return ()
+    ("alfred-slack:", "next", query) -> do
+      let q = (read . cs . fromJust . lookup "q") query :: [T.Text]
+      let cursor = (cs . fromJust . lookup "cursor") query
+      main' $ "next" : cursor : q
+    _ -> do
       return ()
 
 sortItemsByTitle :: [Item] -> [Item]
 sortItemsByTitle = sortOn title
+
+output :: [T.Text] -> [Item] -> Cursor -> IO ()
+output keywords resultItems cursor =
+  putStrLn $
+  cs $
+  encode $
+  SearchResult
+    { skipknowledge = True
+    , variables = Variables {oldResults = "[]", oldArgv = "[]"}
+    , items =
+        resultItems ++
+        ([ Item
+           ""
+           "Next..."
+           "Show next results"
+           (Just $
+            cs $
+            "alfred-slack://next?q=" ++
+            escapeURIString isUnreserved (show keywords) ++
+            "&cursor=" ++ escapeURIString isUnreserved (cs cursor))
+           Nothing
+         | (not . T.null) cursor
+         ])
+    }
 
 main' :: [T.Text] -> IO ()
 main' args = do
@@ -95,6 +172,13 @@ main' args = do
       let arg' = args !! 1
        in do open arg'
              addUsedArg arg'
+    "next" -> do
+      let cursor = args !! 1
+      let keywords = drop 2 args
+      token <- XML.getValue "user_oauth_token" <&> fromJust
+      (nextCursor, resultItems) <-
+        searchMessages token cursor (T.intercalate " " keywords)
+      output keywords resultItems nextCursor
     "search" -> do
       mToken <- XML.getValue "user_oauth_token"
       case (mToken, args !! 1) of
@@ -174,7 +258,7 @@ main' args = do
                          { arg =
                              Just $
                              cs $
-                             "alfred-slack://" ++
+                             "alfred-slack://command?q=" ++
                              escapeURIString
                                isUnreserved
                                ("/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss" ++
@@ -186,11 +270,11 @@ main' args = do
                        (\item -> partOfItemName /= title item)
                        candidateItems)
               else return []
-          items' <-
+          (cursor, items') <-
             if null channels && null members
-              then searchMessages token "*" (T.intercalate " " keywords) <&> snd
-              else return $
-                   sortItemsByTitle members ++ sortItemsByTitle channels
+              then searchMessages token "*" (T.intercalate " " keywords)
+              else return
+                     ("", sortItemsByTitle members ++ sortItemsByTitle channels)
                    -- Note: There are so many channels, so I'll prioritize members.
           let items'' = items' ++ candidateItems
           let items''' =
@@ -206,12 +290,5 @@ main' args = do
                   else items''
           usedArgs <- loadUsedArgs
           let sortedItems = sortUsedArgsFirst items''' usedArgs
-          putStrLn $
-            cs $
-            encode $
-            SearchResult
-              { skipknowledge = True
-              , variables = Variables {oldResults = "[]", oldArgv = "[]"}
-              , items = sortedItems
-              }
+          output keywords sortedItems cursor
     _ -> exitFailure
