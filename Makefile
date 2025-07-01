@@ -18,6 +18,10 @@ $(MAKEFILE_DIR)/alfred/alfred-slack.app/Contents/MacOS/alfred-slack: $(MAKEFILE_
 	rm -rf /Applications/alfred-slack.app
 	cp -r $(MAKEFILE_DIR)/alfred/alfred-slack.app /Applications
 
+.PHONY: format
+format:
+	fourmolu -i $(SRCS)
+
 .PHONY: clean
 clean:
 	cd $(MAKEFILE_DIR)/haskell && stack clean
