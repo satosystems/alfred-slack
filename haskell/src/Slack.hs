@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Slack
-    -- * API request
-  ( getChannels
+  ( -- * API request
+    getChannels
   , getMembers
   , searchMessages
+
     -- * Cache control
   , cacheFile
   , clearChannelsCache
@@ -20,7 +21,7 @@ import Data.Maybe (fromMaybe)
 import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Data.Text.Normalize (NormalizationMode(NFC), normalize)
+import Data.Text.Normalize (NormalizationMode (NFC), normalize)
 import Network.HTTP.Simple
   ( Query
   , Request
@@ -38,18 +39,18 @@ import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import Text.Regex.TDFA ((=~))
 
 import SlackResponse
-  ( Channel(Channel)
-  , ListResponse(ListResponse)
-  , Match(Match)
-  , MatchChannel(MatchChannel)
-  , Member(Member, memberProfile)
-  , Messages(Messages)
-  , Paging(Paging)
-  , Profile(Profile, profileImage_48)
-  , Purpose(Purpose)
-  , ResponseMetadata(ResponseMetadata, responseMetadataNextCursor)
+  ( Channel (Channel)
+  , ListResponse (ListResponse)
+  , Match (Match)
+  , MatchChannel (MatchChannel)
+  , Member (Member, memberProfile)
+  , Messages (Messages)
+  , Paging (Paging)
+  , Profile (Profile, profileImage_48)
+  , Purpose (Purpose)
+  , ResponseMetadata (ResponseMetadata, responseMetadataNextCursor)
   )
-import Types (Cursor, ImagePath(ImagePath), Item(Item), Path, Token, URL, (+++))
+import Types (Cursor, ImagePath (ImagePath), Item (Item), Path, Token, URL, (+++))
 
 apiPathChannels :: Path
 apiPathChannels = "api/conversations.list"
@@ -60,8 +61,8 @@ apiPathMembers = "api/users.list"
 apiPathMessages :: Path
 apiPathMessages = "api/search.messages"
 
-makeRequest ::
-     B.ByteString
+makeRequest
+  :: B.ByteString
   -> [(B.ByteString, T.Text)]
   -> B.ByteString
   -> [(B.ByteString, T.Text)]
@@ -94,32 +95,33 @@ getChannelsOrMembers token path' = do
       results <- go ([], []) ""
       writeCacheJSON cache $ (cs . show) results
       return results
-  where
-    go :: ([Channel], [Member]) -> Cursor -> IO ([Channel], [Member])
-    go acc@(channels, members) cursor = do
-      let req =
-            makeRequest
-              "GET"
-              [("Authorization", "Bearer " +++ token)]
-              (cs path') $
-            [("limit", "100"), ("exclude_archived", "true")] ++
-            [("cursor", cursor) | (not . T.null) cursor] ++
-            [ ("types", "public_channel,private_channel,mpim")
-            | path' == apiPathChannels
-            ]
-      res <- httpJSON req
-      let ListResponse ok mChannels mMembers _ mMetadata = getResponseBody res
-      if ok
-        then let nc =
-                   responseMetadataNextCursor $
-                   fromMaybe (ResponseMetadata "") mMetadata
-                 channels' = fromMaybe [] mChannels
-                 members' = fromMaybe [] mMembers
-                 acc' = (channels ++ channels', members ++ members')
-              in if T.null nc
-                   then return acc'
-                   else go acc' nc
-        else return acc
+ where
+  go :: ([Channel], [Member]) -> Cursor -> IO ([Channel], [Member])
+  go acc@(channels, members) cursor = do
+    let req =
+          makeRequest
+            "GET"
+            [("Authorization", "Bearer " +++ token)]
+            (cs path')
+            $ [("limit", "100"), ("exclude_archived", "true")]
+              ++ [("cursor", cursor) | (not . T.null) cursor]
+              ++ [ ("types", "public_channel,private_channel,mpim")
+                 | path' == apiPathChannels
+                 ]
+    res <- httpJSON req
+    let ListResponse ok mChannels mMembers _ mMetadata = getResponseBody res
+    if ok
+      then
+        let nc =
+              responseMetadataNextCursor $
+                fromMaybe (ResponseMetadata "") mMetadata
+            channels' = fromMaybe [] mChannels
+            members' = fromMaybe [] mMembers
+            acc' = (channels ++ channels', members ++ members')
+         in if T.null nc
+              then return acc'
+              else go acc' nc
+      else return acc
 
 infixOfIgnoreCase :: T.Text -> T.Text -> Bool
 infixOfIgnoreCase needle haystack =
@@ -130,7 +132,7 @@ infixOfIgnoreCase needle haystack =
 formatPrettyMpdmIfNeeded :: T.Text -> T.Text
 formatPrettyMpdmIfNeeded name
   | "mpdm-" `T.isPrefixOf` name && "-1" `T.isSuffixOf` name =
-    T.intercalate ", " $ T.splitOn "--" $ (T.init . T.init . T.drop 5) name
+      T.intercalate ", " $ T.splitOn "--" $ (T.init . T.init . T.drop 5) name
   | otherwise = name
 
 foldToItemFromChannel :: [T.Text] -> [Item] -> Channel -> [Item]
@@ -141,17 +143,17 @@ foldToItemFromChannel [] acc (Channel id' name _ teamId (Purpose value)) =
     (formatPrettyMpdmIfNeeded name)
     value
     (Just ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
-    Nothing :
-  acc
+    Nothing
+    : acc
 foldToItemFromChannel keywords acc (Channel id' name _ teamId (Purpose value))
   | all (`infixOfIgnoreCase` name) keywords =
-    Item
-      id'
-      (formatPrettyMpdmIfNeeded name)
-      value
-      (Just ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
-      Nothing :
-    acc
+      Item
+        id'
+        (formatPrettyMpdmIfNeeded name)
+        value
+        (Just ("'slack://channel?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
+        Nothing
+        : acc
   | otherwise = acc
 
 -- |
@@ -174,20 +176,21 @@ foldToItemFromMember [] acc (Member id' teamId name _ (Profile realName displayN
     displayName
     (realName +++ " (" +++ name +++ ")")
     (Just ("'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
-    (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
-  acc
+    (Just $ ImagePath $ "./.cache/" ++ imagePath image)
+    : acc
 foldToItemFromMember keywords acc (Member id' teamId name _ (Profile realName displayName image) _)
   | all
-     (\keyword ->
-        any (keyword `infixOfIgnoreCase`) [name, realName, displayName])
-     keywords =
-    Item
-      id'
-      displayName
-      (realName +++ " (" +++ name +++ ")")
-      (Just ("'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
-      (Just $ ImagePath $ "./.cache/" ++ imagePath image) :
-    acc
+      ( \keyword ->
+          any (keyword `infixOfIgnoreCase`) [name, realName, displayName]
+      )
+      keywords =
+      Item
+        id'
+        displayName
+        (realName +++ " (" +++ name +++ ")")
+        (Just ("'slack://user?team=" +++ teamId +++ "&id=" +++ id' +++ "'"))
+        (Just $ ImagePath $ "./.cache/" ++ imagePath image)
+        : acc
   | otherwise = acc
 
 getChannels :: Token -> [T.Text] -> IO [Item]
@@ -208,71 +211,73 @@ searchMessages token cursor query = do
           "GET"
           [("Authorization", "Bearer " +++ token)]
           (cs apiPathMessages)
-          ([("count", "100"), ("query", query)] ++
-           [("cursor", cursor) | (not . T.null) cursor])
+          ( [("count", "100"), ("query", query)]
+              ++ [("cursor", cursor) | (not . T.null) cursor]
+          )
   res <- httpJSON req
   let ListResponse ok _ _ mMessages _ = getResponseBody res
   if ok
     then case mMessages of
-           Nothing -> return ("", [])
-           Just (Messages matches _ (Paging _ _ nextCursor) _) ->
-             return (nextCursor, map toItem matches)
+      Nothing -> return ("", [])
+      Just (Messages matches _ (Paging _ _ nextCursor) _) ->
+        return (nextCursor, map toItem matches)
     else return ("", [])
-  where
-    toItem :: Match -> Item
-    toItem (Match iid team (MatchChannel id' isChannel isGroup isMpim name) username ts text permalink) =
-      Item iid (toReadable text) subtitle' arg' Nothing
-      where
-        toReadable :: T.Text -> T.Text
-        toReadable input = go (T.replace "\n" " " input)
-          where
-            regex = "<@[^|]*\\|([^>]*)>" :: T.Text
-            go :: T.Text -> T.Text
-            go txt =
-              let result = txt =~ regex :: (T.Text, T.Text, T.Text, [T.Text])
-               in case result of
-                    (before', _, after', [capture]) ->
-                      before' <> capture <> go after'
-                    _ -> txt
-        subtitle' :: T.Text
-        subtitle' =
-          case (isChannel || isGroup, isMpim) of
-            (_, True) -> formatPrettyMpdmIfNeeded name
-            (True, _) -> name
-            _ -> username
-        threadTs :: T.Text
-        threadTs =
-          let split = T.splitOn "=" permalink
-           in if length split == 1
-                then ""
-                else last split
-        arg' :: Maybe T.Text
-        arg' =
-          Just $
-          "'slack://channel?team=" +++
-          team +++
-          "&id=" +++
-          id' +++
-          "&message=" +++
-          ts +++
-          (if ts == threadTs
-             then ""
-             else "&thread_ts=" +++ threadTs) +++
-          "&host=slack.com'"
+ where
+  toItem :: Match -> Item
+  toItem (Match iid team (MatchChannel id' isChannel isGroup isMpim name) username ts text permalink) =
+    Item iid (toReadable text) subtitle' arg' Nothing
+   where
+    toReadable :: T.Text -> T.Text
+    toReadable input = go (T.replace "\n" " " input)
+     where
+      regex = "<@[^|]*\\|([^>]*)>" :: T.Text
+      go :: T.Text -> T.Text
+      go txt =
+        let result = txt =~ regex :: (T.Text, T.Text, T.Text, [T.Text])
+         in case result of
+              (before', _, after', [capture]) ->
+                before' <> capture <> go after'
+              _ -> txt
+    subtitle' :: T.Text
+    subtitle' =
+      case (isChannel || isGroup, isMpim) of
+        (_, True) -> formatPrettyMpdmIfNeeded name
+        (True, _) -> name
+        _ -> username
+    threadTs :: T.Text
+    threadTs =
+      let split = T.splitOn "=" permalink
+       in if length split == 1
+            then ""
+            else last split
+    arg' :: Maybe T.Text
+    arg' =
+      Just $
+        "'slack://channel?team="
+          +++ team
+          +++ "&id="
+          +++ id'
+          +++ "&message="
+          +++ ts
+          +++ ( if ts == threadTs
+                  then ""
+                  else "&thread_ts=" +++ threadTs
+              )
+          +++ "&host=slack.com'"
 
 downloadImage :: [Member] -> IO ()
 downloadImage members = do
   mapConcurrently_ go members
-  where
-    go member = do
-      let image = (profileImage_48 . memberProfile) member
-      let filePath = (cacheFile . imagePath) image
-      exist <- doesFileExist filePath
-      exist `unless` do
-        let req = parseRequest_ $ "GET " ++ cs image
-        res <- httpLBS req
-        let body = getResponseBody res
-        writeCacheImage filePath body
+ where
+  go member = do
+    let image = (profileImage_48 . memberProfile) member
+    let filePath = (cacheFile . imagePath) image
+    exist <- doesFileExist filePath
+    exist `unless` do
+      let req = parseRequest_ $ "GET " ++ cs image
+      res <- httpLBS req
+      let body = getResponseBody res
+      writeCacheImage filePath body
 
 parentDirectory :: FilePath -> FilePath
 parentDirectory filePath =

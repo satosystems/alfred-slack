@@ -15,7 +15,7 @@ import Data.Maybe (fromJust, fromMaybe, isJust)
 import Data.String.Conversions (cs)
 import qualified Data.Text as T
 import Data.Time.Clock.System
-  ( SystemTime(systemNanoseconds, systemSeconds)
+  ( SystemTime (systemNanoseconds, systemSeconds)
   , getSystemTime
   )
 import Network.URI (escapeURIString, isUnreserved, unEscapeString)
@@ -33,10 +33,10 @@ import Slack
   , searchMessages
   )
 import Types
-  ( ImagePath(..)
-  , Item(..)
-  , SearchResult(SearchResult, items, skipknowledge, variables)
-  , Variables(Variables, oldArgv, oldResults)
+  ( ImagePath (..)
+  , Item (..)
+  , SearchResult (SearchResult, items, skipknowledge, variables)
+  , Variables (Variables, oldArgv, oldResults)
   )
 import qualified XML
 
@@ -64,14 +64,14 @@ addUsedArg arg' = do
 sortUsedArgsFirst :: [Item] -> [T.Text] -> [Item]
 sortUsedArgsFirst items' usedArgs =
   go [] (zip (map (T.tail . T.init . fromMaybe "\"\"" . arg) items') items') $
-  reverse usedArgs
-  where
-    go :: [Item] -> [(T.Text, Item)] -> [T.Text] -> [Item]
-    go hit base [] = uniq $ hit ++ map snd base
-    go hit base (x:xs) =
-      case x `lookup` base of
-        Nothing -> go hit base xs
-        Just item -> go (item : hit) base xs
+    reverse usedArgs
+ where
+  go :: [Item] -> [(T.Text, Item)] -> [T.Text] -> [Item]
+  go hit base [] = uniq $ hit ++ map snd base
+  go hit base (x : xs) =
+    case x `lookup` base of
+      Nothing -> go hit base xs
+      Just item -> go (item : hit) base xs
 
 open :: T.Text -> IO ()
 open url = do
@@ -93,8 +93,9 @@ main' args = do
   case head args of
     "open" ->
       let arg' = args !! 1
-       in do open arg'
-             addUsedArg arg'
+       in do
+            open arg'
+            addUsedArg arg'
     "search" -> do
       mToken <- XML.getValue "user_oauth_token"
       case (mToken, args !! 1) of
@@ -125,23 +126,25 @@ main' args = do
                   else (seconds, nanoseconds)
           putStrLn $
             cs $
-            encode $
-            SearchResult
-              { skipknowledge = True
-              , variables = Variables {oldResults = "[]", oldArgv = "[]"}
-              , items =
-                  [ Item
-                      { uid = ""
-                      , title = "Done."
-                      , subtitle =
-                          cs $
-                          show seconds' ++
-                          "." ++ take 2 (show nanoseconds') ++ " sec"
-                      , arg = Nothing
-                      , icon = Nothing
-                      }
-                  ]
-              }
+              encode $
+                SearchResult
+                  { skipknowledge = True
+                  , variables = Variables {oldResults = "[]", oldArgv = "[]"}
+                  , items =
+                      [ Item
+                          { uid = ""
+                          , title = "Done."
+                          , subtitle =
+                              cs $
+                                show seconds'
+                                  ++ "."
+                                  ++ take 2 (show nanoseconds')
+                                  ++ " sec"
+                          , arg = Nothing
+                          , icon = Nothing
+                          }
+                      ]
+                  }
         (Just token, _) -> do
           let keywords = tail args
           let lastKeyword = last keywords
@@ -151,14 +154,17 @@ main' args = do
           members <- wait a2
           let (prefix, getter, fn) =
                 case ( "in:#" `T.isPrefixOf` lastKeyword
-                     , "from:@" `T.isPrefixOf` lastKeyword) of
+                     , "from:@" `T.isPrefixOf` lastKeyword
+                     ) of
                   (True, _) -> ("in:#", Just getChannels, Just $ cs . title)
                   (_, True) ->
                     ( "from:@"
                     , Just getMembers
                     , Just $
-                      (cs . last . init . T.splitOn ")") .
-                      (last . T.splitOn "(") . subtitle)
+                        (cs . last . init . T.splitOn ")")
+                          . (last . T.splitOn "(")
+                          . subtitle
+                    )
                   _ -> ("", Nothing, Nothing)
           candidateItems <-
             if isJust fn
@@ -169,49 +175,57 @@ main' args = do
                 let searchText = T.intercalate " " $ "" : init keywords
                 return $
                   map
-                    (\item ->
-                       item
-                         { arg =
-                             Just $
-                             cs $
-                             "alfred-slack://" ++
-                             escapeURIString
-                               isUnreserved
-                               ("/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss" ++
-                                cs searchText ++
-                                " " ++ prefix ++ fromJust fn item ++ "\"'")
-                         , icon = Just $ ImagePath "./alfred.png"
-                         })
-                    (filter
-                       (\item -> partOfItemName /= title item)
-                       candidateItems)
+                    ( \item ->
+                        item
+                          { arg =
+                              Just $
+                                cs $
+                                  "alfred-slack://"
+                                    ++ escapeURIString
+                                      isUnreserved
+                                      ( "/usr/bin/osascript -e 'tell application \"Alfred 5\" to search \"ss"
+                                          ++ cs searchText
+                                          ++ " "
+                                          ++ prefix
+                                          ++ fromJust fn item
+                                          ++ "\"'"
+                                      )
+                          , icon = Just $ ImagePath "./alfred.png"
+                          }
+                    )
+                    ( filter
+                        (\item -> partOfItemName /= title item)
+                        candidateItems
+                    )
               else return []
           items' <-
             if null channels && null members
               then searchMessages token "*" (T.intercalate " " keywords) <&> snd
-              else return $
-                   sortItemsByTitle members ++ sortItemsByTitle channels
-                   -- Note: There are so many channels, so I'll prioritize members.
+              else
+                return $
+                  sortItemsByTitle members ++ sortItemsByTitle channels
+          -- Note: There are so many channels, so I'll prioritize members.
           let items'' = items' ++ candidateItems
           let items''' =
                 if null items''
-                  then [ Item
-                           { uid = ""
-                           , title = "NO MATCH."
-                           , subtitle = "Please change keyword."
-                           , arg = Nothing
-                           , icon = Nothing
-                           }
-                       ]
+                  then
+                    [ Item
+                        { uid = ""
+                        , title = "NO MATCH."
+                        , subtitle = "Please change keyword."
+                        , arg = Nothing
+                        , icon = Nothing
+                        }
+                    ]
                   else items''
           usedArgs <- loadUsedArgs
           let sortedItems = sortUsedArgsFirst items''' usedArgs
           putStrLn $
             cs $
-            encode $
-            SearchResult
-              { skipknowledge = True
-              , variables = Variables {oldResults = "[]", oldArgv = "[]"}
-              , items = sortedItems
-              }
+              encode $
+                SearchResult
+                  { skipknowledge = True
+                  , variables = Variables {oldResults = "[]", oldArgv = "[]"}
+                  , items = sortedItems
+                  }
     _ -> exitFailure
