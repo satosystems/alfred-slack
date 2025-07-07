@@ -93,7 +93,7 @@ getChannelsOrMembers token path' = do
       return $ read contents
     else do
       results <- go ([], []) ""
-      writeCacheJSON cache $ (cs . show) results
+      writeCache cache $ (cs . show) results
       return results
  where
   go :: ([Channel], [Member]) -> Cursor -> IO ([Channel], [Member])
@@ -283,8 +283,8 @@ parentDirectory :: FilePath -> FilePath
 parentDirectory filePath =
   cs $ T.intercalate "/" $ init $ T.splitOn "/" $ cs filePath
 
-writeCacheJSON :: FilePath -> T.Text -> IO ()
-writeCacheJSON filePath contents = do
+writeCache :: FilePath -> T.Text -> IO ()
+writeCache filePath contents = do
   let dir = parentDirectory filePath
   createDirectoryIfMissing True dir
   TIO.writeFile filePath contents
