@@ -15,6 +15,16 @@ category: CLI
 
 description: Please see the README on GitHub at <https://github.com/satosystems/alfred-slack#readme>
 
+flags:
+  debug:
+    description: Enable debug build (with -DDEBUG)
+    manual: true
+    default: true
+  release:
+    description: Enable release build (with -O2 and without -DDEBUG)
+    manual: true
+    default: false
+
 dependencies:
   - MissingH
   - aeson
@@ -52,6 +62,13 @@ ghc-options:
 
 library:
   source-dirs: src
+  when:
+    - condition: flag(debug)
+      cpp-options:
+        - -DDEBUG
+    - condition: flag(release)
+      ghc-options:
+        - -O2
 
 executables:
   alfred-slack:
@@ -63,3 +80,10 @@ executables:
       - -with-rtsopts=-N
     dependencies:
       - alfred-slack
+    when:
+      - condition: flag(debug)
+        cpp-options:
+          - -DDEBUG
+      - condition: flag(release)
+        ghc-options:
+          - -O2

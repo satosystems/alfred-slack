@@ -7,7 +7,7 @@ SRCS:=$(shell find $(MAKEFILE_DIR)/haskell -name *.hs)
 build: /Applications/alfred-slack.app/Contents/MacOS/alfred-slack
 
 $(MAKEFILE_DIR)/alfred/alfred-slack: $(SRCS)
-	cd $(MAKEFILE_DIR)/haskell && stack build
+	cd $(MAKEFILE_DIR)/haskell && stack build --flag alfred-slack:release --flag alfred-slack:-debug
 	cp $(MAKEFILE_DIR)/haskell/.stack-work/dist/aarch64-osx/*-*/build/alfred-slack/alfred-slack $@
 
 $(MAKEFILE_DIR)/alfred/alfred-slack.app/Contents/MacOS/alfred-slack: $(MAKEFILE_DIR)/alfred/alfred-slack
