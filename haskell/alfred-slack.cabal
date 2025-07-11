@@ -25,6 +25,16 @@ source-repository head
   type: git
   location: https://github.com/satosystems/alfred-slack
 
+flag debug
+  description: Enable debug build (with -DDEBUG)
+  manual: True
+  default: True
+
+flag release
+  description: Enable release build (with -O2 and without -DDEBUG)
+  manual: True
+  default: False
+
 library
   exposed-modules:
       Alfred
@@ -62,6 +72,10 @@ library
     , unix
     , xml-conduit
   default-language: Haskell2010
+  if flag(debug)
+    cpp-options: -DDEBUG
+  if flag(release)
+    ghc-options: -O2
 
 executable alfred-slack
   main-is: Main.hs
@@ -95,3 +109,7 @@ executable alfred-slack
     , unix
     , xml-conduit
   default-language: Haskell2010
+  if flag(debug)
+    cpp-options: -DDEBUG
+  if flag(release)
+    ghc-options: -O2
