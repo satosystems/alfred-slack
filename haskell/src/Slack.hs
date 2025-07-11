@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Slack
@@ -37,6 +38,10 @@ import Network.HTTP.Simple
   )
 import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import Text.Regex.TDFA ((=~))
+
+#ifdef DEBUG
+import Debug (debugWriteCacheJSON)
+#endif
 
 import SlackResponse
   ( Channel (Channel)
@@ -94,6 +99,11 @@ getChannelsOrMembers token path' = do
     else do
       results <- go ([], []) ""
       writeCache cache $ (cs . show) results
+#ifdef DEBUG
+      if path' == apiPathChannels
+        then debugWriteCacheJSON (fst results :: [Channel]) (cache ++ ".json")
+        else debugWriteCacheJSON (snd results :: [Member]) (cache ++ ".json")
+#endif
       return results
  where
   go :: ([Channel], [Member]) -> Cursor -> IO ([Channel], [Member])
