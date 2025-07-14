@@ -40,7 +40,7 @@ import System.Directory (createDirectoryIfMissing, doesFileExist, removeFile)
 import Text.Regex.TDFA ((=~))
 
 #ifdef DEBUG
-import Debug (debugWriteCacheJSON)
+import Debug (debug, debugWriteCacheJSON)
 #endif
 
 import SlackResponse
@@ -106,6 +106,11 @@ getChannelsOrMembers token path' = do
 #endif
       return results
  where
+#ifdef DEBUG
+  debugPrintLength :: ([Channel], [Member]) -> IO ()
+  debugPrintLength (channels, members) =
+    debug $ "channels: " ++ show (length channels) ++ ", members: " ++ show (length members)
+#endif
   go :: ([Channel], [Member]) -> Cursor -> IO ([Channel], [Member])
   go acc@(channels, members) cursor = do
     let req =
@@ -118,8 +123,18 @@ getChannelsOrMembers token path' = do
               ++ [ ("types", "public_channel,private_channel,mpim")
                  | path' == apiPathChannels
                  ]
+#ifdef DEBUG
+              ++ [("pretty", "1")]
+    debug ("--------------------" :: String)
+    debug $ show req
+#endif
     res <- httpJSON req
     let ListResponse ok mChannels mMembers _ mMetadata = getResponseBody res
+#ifdef DEBUG
+    debug ("--------------------" :: String)
+    debug $ show res
+    debug ("--------------------" :: String)
+#endif
     if ok
       then
         let nc =
@@ -129,8 +144,16 @@ getChannelsOrMembers token path' = do
             members' = fromMaybe [] mMembers
             acc' = (channels ++ channels', members ++ members')
          in if T.null nc
-              then return acc'
-              else go acc' nc
+              then do
+#ifdef DEBUG
+                debugPrintLength acc'
+#endif
+                return acc'
+              else do
+#ifdef DEBUG
+                debugPrintLength acc'
+#endif
+                go acc' nc
       else return acc
 
 infixOfIgnoreCase :: T.Text -> T.Text -> Bool
