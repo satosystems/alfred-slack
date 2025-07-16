@@ -118,7 +118,7 @@ getChannelsOrMembers token path' = do
             "GET"
             [("Authorization", "Bearer " +++ token)]
             (cs path')
-            $ [("limit", "100"), ("exclude_archived", "true")]
+            $ [("limit", "1000"), ("exclude_archived", "true")]
               ++ [("cursor", cursor) | (not . T.null) cursor]
               ++ [ ("types", "public_channel,private_channel,mpim")
                  | path' == apiPathChannels
